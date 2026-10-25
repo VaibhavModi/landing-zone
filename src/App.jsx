@@ -1,7 +1,75 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Analytics } from '@vercel/analytics/react';
-import profilePortrait from './images/profile-portrait.png';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import './App.css';
+
+const SITE_URL = 'https://www.vaibhavmodi.com';
+
+const routeMeta = {
+  home: {
+    title: 'Vaibhav Modi: Landing Zone',
+    description:
+      'Vaibhav Modi is a software engineer and curious builder creating thoughtful, human digital experiences.',
+  },
+  recruiter: {
+    title: 'Vaibhav Modi · Recruiter',
+    description:
+      'A direct look at Vaibhav Modi\'s work, how he thinks, and how to get in touch.',
+  },
+  friend: {
+    title: 'Vaibhav Modi · Friend',
+    description: 'Games Vaibhav Modi has been spending time with lately.',
+  },
+  'not-found': {
+    title: 'Vaibhav Modi · Page not found',
+    description: 'That page is not part of Vaibhav Modi\'s site.',
+  },
+};
+
+function upsertMeta(attribute, key, content) {
+  let element = document.head.querySelector(`meta[${attribute}="${key}"]`);
+  if (!element) {
+    element = document.createElement('meta');
+    element.setAttribute(attribute, key);
+    document.head.appendChild(element);
+  }
+  element.setAttribute('content', content);
+}
+
+function upsertCanonical(href) {
+  let element = document.head.querySelector('link[rel="canonical"]');
+  if (!element) {
+    element = document.createElement('link');
+    element.setAttribute('rel', 'canonical');
+    document.head.appendChild(element);
+  }
+  element.setAttribute('href', href);
+}
+
+function normalizePathname(pathname) {
+  if (pathname.length > 1) {
+    return pathname.replace(/\/+$/, '');
+  }
+  return pathname;
+}
+
+function Portrait({ alt, className, priority = false }) {
+  return (
+    <picture>
+      <source srcSet="/images/profile-portrait.avif" type="image/avif" />
+      <source srcSet="/images/profile-portrait.webp" type="image/webp" />
+      <img
+        src="/images/profile-portrait.png"
+        alt={alt}
+        className={className}
+        width="500"
+        height="666"
+        decoding="async"
+        fetchpriority={priority ? 'high' : 'auto'}
+      />
+    </picture>
+  );
+}
 
 
 const loadRecruiterPage = () => import('./gateways/RecruiterPage.jsx');
@@ -40,7 +108,7 @@ const routeLoaders = {
 };
 
 function Header({ activeView, goHome, switchLens }) {
-  const routeOpen = activeView !== 'home';
+  const routeOpen = activeView === 'recruiter' || activeView === 'friend';
 
   const handleHomeClick = (event) => {
     event.preventDefault();
@@ -52,7 +120,7 @@ function Header({ activeView, goHome, switchLens }) {
       <a className="brand-lockup brand-lockup-link" href="/" onClick={handleHomeClick}>
         <span className={routeOpen ? 'header-photo-frame header-photo-frame--active' : 'header-photo-frame'}>
           <span className={routeOpen ? 'header-photo-wrap is-visible' : 'header-photo-wrap'} aria-hidden="true">
-            <img src={profilePortrait} alt="" className="header-photo" width="498" height="664" />
+            <Portrait alt="" className="header-photo" />
           </span>
         </span>
         <span className="brand">vaibhav modi</span>
@@ -99,14 +167,10 @@ function HomeFrame({ openView }) {
           <div className="photo-panel" aria-label="Profile photo">
             <div className="photo-ring">
               <div className="photo-placeholder">
-                <img
-                  src={profilePortrait}
-                  alt="Portrait Photo"
+                <Portrait
+                  alt="Portrait of Vaibhav Modi"
                   className="profile-photo"
-                  width="498"
-                  height="664"
-                  fetchpriority="high"
-                  decoding="async"
+                  priority
                 />
               </div>
             </div>
@@ -133,7 +197,7 @@ function HomeFrame({ openView }) {
             </div>
 
             <section className="gateway-console">
-              <div className="gateway-actions" role="tablist" aria-label="Gateway paths">
+              <nav className="gateway-actions" aria-label="Gateway paths">
                 {gatewayOrder.map((key) => {
                   const gateway = gateways[key];
                   return (
@@ -150,7 +214,7 @@ function HomeFrame({ openView }) {
                     </button>
                   );
                 })}
-              </div>
+              </nav>
               <p className={`gateway-detail${hoveredGateway ? ' gateway-detail--visible' : ''}`}>
                 {hoveredGateway ? gateways[hoveredGateway].detail : '\u00A0'}
               </p>
@@ -180,6 +244,25 @@ function RouteFrame({ view, goHome }) {
         >
           <RoutePage goHome={goHome} />
         </Suspense>
+      </div>
+    </section>
+  );
+}
+
+function NotFoundFrame({ goHome }) {
+  return (
+    <section className="route-frame">
+      <div className="route-frame__inner">
+        <p className="eyebrow">404</p>
+        <h1>This doorway does not exist.</h1>
+        <p className="route-copy">
+          The page you asked for is not part of the landing zone.
+        </p>
+        <div className="route-actions">
+          <button className="ghost-button" type="button" onClick={goHome}>
+            Back home
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -217,9 +300,9 @@ function Footer() {
 }
 
 function App() {
-  const [pathname, setPathname] = useState(() => window.location.pathname);
-  const pathView = pathname === '/' ? 'home' : pathname.replace(/^\//, '');
-  const currentView = validViews.has(pathView) ? pathView : 'home';
+  const [pathname, setPathname] = useState(() => normalizePathname(window.location.pathname));
+  const pathView = pathname === '/' ? 'home' : pathname.slice(1);
+  const currentView = validViews.has(pathView) ? pathView : 'not-found';
 
   const openView = (view) => {
     const nextPath = view === 'home' ? '/' : `/${view}`;
@@ -251,23 +334,30 @@ function App() {
   };
 
   useEffect(() => {
-    const titles = {
-      home: 'Vaibhav Modi: Landing Zone',
-      recruiter: 'Recruiter',
-      friend: 'Friend',
-    };
-    const title = titles[currentView] ?? 'Vaibhav Modi: Landing Zone';
-    document.title = title;
+    const meta = routeMeta[currentView] ?? routeMeta['not-found'];
+    const path = currentView === 'home'
+      ? '/'
+      : currentView === 'not-found'
+        ? pathname
+        : `/${currentView}`;
+    document.title = meta.title;
+    upsertMeta('name', 'description', meta.description);
+    upsertMeta('property', 'og:title', meta.title);
+    upsertMeta('property', 'og:description', meta.description);
+    upsertMeta('property', 'og:url', `${SITE_URL}${path}`);
+    upsertMeta('name', 'twitter:title', meta.title);
+    upsertMeta('name', 'twitter:description', meta.description);
+    upsertMeta('name', 'robots', currentView === 'not-found' ? 'noindex' : 'all');
+    upsertCanonical(`${SITE_URL}${path}`);
     const isLocal = /^(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(window.location.hostname);
     if (typeof window.gtag === 'function' && !isLocal) {
-      const path = currentView === 'home' ? '/' : `/${currentView}`;
       window.gtag('event', 'page_view', {
         page_path: path,
-        page_title: title,
+        page_title: meta.title,
         page_location: window.location.origin + path,
       });
     }
-  }, [currentView]);
+  }, [currentView, pathname]);
 
   useEffect(() => {
     let timer;
@@ -279,7 +369,7 @@ function App() {
       } else {
         document.title = document.title !== 'you left something here 👀'
           ? document.title
-          : (currentView === 'home' ? 'Vaibhav Modi: Landing Zone' : gateways[currentView]?.label ?? 'Vaibhav Modi: Landing Zone');
+          : (routeMeta[currentView]?.title ?? routeMeta.home.title);
 
         // hold red for 2s so user sees it, then transition to green
         timer = setTimeout(() => {
@@ -292,11 +382,11 @@ function App() {
       window.removeEventListener('visibilitychange', handleVisibility);
       clearTimeout(timer);
     };
-  }, []);
+  }, [currentView]);
 
   useEffect(() => {
     const handlePopState = () => {
-      setPathname(window.location.pathname);
+      setPathname(normalizePathname(window.location.pathname));
     };
 
     window.history.replaceState(
@@ -341,6 +431,8 @@ function App() {
 
         {currentView === 'home' ? (
           <HomeFrame openView={openView} />
+        ) : currentView === 'not-found' ? (
+          <NotFoundFrame goHome={goHome} />
         ) : (
           <RouteFrame key={currentView} view={currentView} goHome={goHome} />
         )}
@@ -348,6 +440,7 @@ function App() {
         <Footer />
       </main>
       <Analytics />
+      <SpeedInsights />
     </div>
   );
 }

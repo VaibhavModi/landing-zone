@@ -27,7 +27,7 @@ const showcaseNotesByApp = {
 };
 
 const buildGameHeaderImage = (appid) => (
-  `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${appid}/header.jpg`
+  `https://shared.steamstatic.com/store_item_assets/steam/apps/${appid}/header.jpg`
 );
 
 const normalizePayload = (payload) => {
@@ -66,7 +66,7 @@ function GameCard({ game }) {
         alt=""
         loading="lazy"
         onError={(event) => {
-          event.currentTarget.style.visibility = 'hidden';
+          event.currentTarget.classList.add('is-broken');
         }}
       />
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=DM+Mono:wght@400;500&family=Newsreader:ital,wght@0,400;0,500;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import './fonts.css';
 
 :root {
   --bg-top: #0c0f15;
@@ -368,6 +368,11 @@ button {
 }
 
 
+
+.photo-placeholder picture,
+.header-photo-wrap picture {
+  display: contents;
+}
 
 .profile-photo {
   display: block;
@@ -768,6 +773,10 @@ button {
   height: 100%;
   object-fit: cover;
   width: 100%;
+}
+
+.steam-showcase-card__art.is-broken {
+  visibility: hidden;
 }
 
 .steam-showcase-card__body {
@@ -1729,6 +1738,19 @@ button {
   transform: rotate(-3deg);
 }
 
+.resume-card-open {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  padding: 0;
+  text-align: inherit;
+}
+
+.resume-card-open:focus-visible,
 .resume-card-wrap:focus-visible {
   outline: 2px solid rgba(114, 232, 255, 0.7);
   outline-offset: 6px;
@@ -1799,6 +1821,18 @@ button {
   border-radius: 1px;
   height: 2.5px;
 }
+
+.doc-line--58 { width: 58%; }
+.doc-line--64 { width: 64%; }
+.doc-line--68 { width: 68%; }
+.doc-line--72 { width: 72%; }
+.doc-line--76 { width: 76%; }
+.doc-line--81 { width: 81%; }
+.doc-line--84 { width: 84%; }
+.doc-line--88 { width: 88%; }
+.doc-line--90 { width: 90%; }
+.doc-line--92 { width: 92%; }
+.doc-line--100 { width: 100%; }
 
 .doc-sep {
   background: #e8e4da !important;
@@ -1906,7 +1940,7 @@ button {
   height: 28px;
 }
 
-.desk-doc .dl-arrow {
+.resume-card-wrap > .dl-arrow {
   top: 8px;
   left: 8px;
   width: 22px;
@@ -2575,7 +2609,7 @@ button {
     border-width: 1.5px;
   }
 
-  .desk-doc .dl-arrow {
+  .resume-card-wrap > .dl-arrow {
     top: 6px;
     left: 6px;
     width: 18px;
@@ -2774,4 +2808,31 @@ button {
     font-size: 0.96rem;
   }
 
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid rgba(114, 232, 255, 0.9);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .route-frame,
+  .photo-ring::before,
+  .photo-ring::after,
+  .header-photo-frame::after,
+  .resume-card-wrap,
+  .mob-tap-hint {
+    animation: none !important;
+  }
 }
