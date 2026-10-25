@@ -50,19 +50,30 @@ function bodyByteLength(body) {
   }
 }
 
-function reportOrigin(request) {
-  const origin = readHeader(request, 'origin').trim();
-  if (origin) {
-    return origin;
-  }
+function isNodeStream(request) {
+  return Boolean(
+    request
+    && typeof request[Symbol.asyncIterator] === 'function'
+    && (typeof request.read === 'function' || typeof request.on === 'function')
+  );
+}
 
-  const referer = readHeader(request, 'referer').trim() || readHeader(request, 'referrer').trim();
-  if (!referer) {
+function presentedOrigin(request) {
+  return readHeader(request, 'origin').trim();
+}
+
+function documentOrigin(parsed) {
+  const value = firstReport(parsed)?.document;
+  if (typeof value !== 'string' || !value) {
     return '';
   }
 
   try {
-    return new URL(referer).origin;
+    const url = new URL(value);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return '';
+    }
+    return url.origin;
   } catch {
     return '';
   }
@@ -207,7 +218,64 @@ function empty(response, status) {
   response.status(status).send('');
 }
 
-export default function handler(request, response) {
+// On Vercel, req.body is a lazy getter that consumes the request stream the
+// first time it is read. Nothing in this handler (or the shared limiter /
+// origin check) may touch request.body before the raw stream is read.
+// application/csp-report and application/reports+json are not parsed by the
+// Node helper, so bodyParser is off and the bytes are read here.
+async function readBody(request) {
+  if (declaredLength(request) > MAX_BODY_BYTES) {
+    return { tooBig: true };
+  }
+
+  if (isNodeStream(request)) {
+    const chunks = [];
+    let total = 0;
+    let tooBig = false;
+    try {
+      for await (const chunk of request) {
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        if (total + buf.length > MAX_BODY_BYTES) {
+          tooBig = true;
+          break;
+        }
+        total += buf.length;
+        chunks.push(buf);
+      }
+    } catch {
+      return tooBig ? { tooBig: true } : { parsed: null };
+    }
+    if (tooBig) {
+      if (typeof request.destroy === 'function') {
+        request.destroy();
+      }
+      return { tooBig: true };
+    }
+    const text = chunks.length ? Buffer.concat(chunks).toString('utf8') : '';
+    return { parsed: parseBody(text) };
+  }
+
+  if (bodyByteLength(request.body) > MAX_BODY_BYTES) {
+    return { tooBig: true };
+  }
+  return { parsed: parseBody(request.body) };
+}
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+// Browsers do not reliably send Origin or Referer on CSP reports. Reporting
+// API delivery sets the request origin, but its header list is only
+// Content-Type: application/reports+json and its client is null. Legacy
+// report-uri deliveries (Chromium PingLoader / no-cors, Firefox nsCSPContext)
+// often omit both headers, so a missing Origin must not drop the report.
+// A present Origin that is not on the steam allowlist is rejected. Referer
+// is not a gate. The report is logged only when its own document-uri /
+// documentURL origin passes isAllowedOrigin.
+export default async function handler(request, response) {
   if (request.method !== 'POST') {
     response.setHeader('Allow', 'POST');
     empty(response, 405);
@@ -219,16 +287,23 @@ export default function handler(request, response) {
     return;
   }
 
-  if (declaredLength(request) > MAX_BODY_BYTES || bodyByteLength(request.body) > MAX_BODY_BYTES) {
-    empty(response, 413);
-    return;
-  }
-
-  if (!isAllowedOrigin(reportOrigin(request))) {
+  const origin = presentedOrigin(request);
+  if (origin && !isAllowedOrigin(origin)) {
     empty(response, 204);
     return;
   }
 
-  logReport(parseBody(request.body));
+  const body = await readBody(request);
+  if (body.tooBig) {
+    empty(response, 413);
+    return;
+  }
+
+  if (!isAllowedOrigin(documentOrigin(body.parsed))) {
+    empty(response, 204);
+    return;
+  }
+
+  logReport(body.parsed);
   empty(response, 204);
 }

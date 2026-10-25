@@ -19,18 +19,30 @@ function readHeader(request, name) {
   return typeof value === 'string' ? value : '';
 }
 
+// Vercel sets x-real-ip and x-vercel-forwarded-for at the edge. The leftmost
+// address is the client IP Vercel observed. x-forwarded-for is also set by
+// Vercel (leftmost is that same client); off Vercel it is best-effort and
+// spoofable, so prefer the Vercel-specific headers when they are present.
 export function clientIp(request) {
+  const realIp = readHeader(request, 'x-real-ip').trim();
+  if (realIp) {
+    return realIp.slice(0, 64);
+  }
+
+  const vercelForwarded = readHeader(request, 'x-vercel-forwarded-for');
+  if (vercelForwarded) {
+    const first = vercelForwarded.split(',')[0].trim();
+    if (first) {
+      return first.slice(0, 64);
+    }
+  }
+
   const forwarded = readHeader(request, 'x-forwarded-for');
   if (forwarded) {
     const first = forwarded.split(',')[0].trim();
     if (first) {
       return first.slice(0, 64);
     }
-  }
-
-  const realIp = readHeader(request, 'x-real-ip').trim();
-  if (realIp) {
-    return realIp.slice(0, 64);
   }
 
   return 'unknown';
