@@ -105,7 +105,9 @@ export default function RecruiterPage() {
   const downloadHref = `https://drive.google.com/uc?export=download&id=${fileId}`;
   const modalRoot = typeof document !== 'undefined' ? document.querySelector('.site-shell') : null;
   const web3FormsEndpoint = 'https://api.web3forms.com/submit';
-  const web3FormsAccessKey = 'efc37f5d-5303-4193-9cd9-450966dd0ee1';
+  const web3FormsAccessKey = (import.meta.env.VITE_WEB3FORMS_KEY || '').trim();
+  const contactFormConfigured = web3FormsAccessKey.length > 0;
+  const contactFormUnavailableMessage = 'The contact form is not available right now. Please email hi@vaibhavmodi.com instead.';
 
   useEffect(() => {
     if (!isOpen) {
@@ -236,6 +238,12 @@ export default function RecruiterPage() {
   const handleContactSubmit = async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
+
+    if (!contactFormConfigured) {
+      setSendState('error');
+      setSendFeedback(contactFormUnavailableMessage);
+      return;
+    }
 
     const trimmedName = senderName.trim();
     const trimmedMessage = messageDraft.trim();
@@ -594,8 +602,13 @@ export default function RecruiterPage() {
                     </button>
                   </div>
 
-                  <p className={`contact-chat-feedback${sendState === 'error' ? ' contact-chat-feedback--visible' : ''}`} role="status">
-                    {sendFeedback}
+                  <p
+                    className={`contact-chat-feedback${(!contactFormConfigured || sendState === 'error') ? ' contact-chat-feedback--visible' : ''}`}
+                    role="status"
+                  >
+                    {sendState === 'error'
+                      ? sendFeedback
+                      : (contactFormConfigured ? sendFeedback : contactFormUnavailableMessage)}
                   </p>
 
                   <a className="contact-chat-email-link" href="mailto:hi@vaibhavmodi.com">
@@ -663,73 +676,65 @@ export default function RecruiterPage() {
 
 function ResumeCard({ downloadHref, onOpen }) {
   return (
-    <div
-      className="resume-card-wrap"
-      role="button"
-      tabIndex={0}
-      aria-label="Resume paper"
-      onClick={onOpen}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onOpen();
-        }
-      }}
-    >
-      <article className="doc desk-doc">
-        <span className="clip" aria-hidden="true" />
-        <a
-          className="dl-arrow dl-arrow-button"
-          href={downloadHref}
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Download resume"
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M6 1.5V7.2" stroke="#6b6257" strokeWidth="1.1" strokeLinecap="round" />
-            <path d="M3.8 5.5L6 7.7L8.2 5.5" stroke="#6b6257" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M2.5 9.5H9.5" stroke="#6b6257" strokeWidth="1.1" strokeLinecap="round" />
-          </svg>
-        </a>
+    <div className="resume-card-wrap">
+      <button
+        className="resume-card-open"
+        type="button"
+        onClick={onOpen}
+      >
+      <span className="doc desk-doc" aria-hidden="true">
+        <span className="clip" />
 
-        <header>
-          <p className="doc-name">Vaibhav Modi</p>
-          <p className="doc-role">Lead Software Engineer</p>
-          <p className="doc-sections">Experience / Projects / Skills / Contact</p>
-        </header>
+        <span className="doc-head">
+          <span className="doc-name">Vaibhav Modi</span>
+          <span className="doc-role">Lead Software Engineer</span>
+          <span className="doc-sections">Experience / Projects / Skills / Contact</span>
+        </span>
 
-        <div className="doc-lines" aria-hidden="true">
-          <span className="doc-line" style={{ width: '76%' }} />
-          <span className="doc-line" style={{ width: '88%' }} />
-          <span className="doc-line" style={{ width: '68%' }} />
-          <span className="doc-line doc-sep" style={{ width: '100%' }} />
-          <span className="doc-line" style={{ width: '92%' }} />
-          <span className="doc-line" style={{ width: '64%' }} />
-          <span className="doc-line" style={{ width: '84%' }} />
-          <span className="doc-line doc-sep" style={{ width: '100%' }} />
-          <span className="doc-line" style={{ width: '72%' }} />
-          <span className="doc-line" style={{ width: '90%' }} />
-          <span className="doc-line" style={{ width: '58%' }} />
-          <span className="doc-line" style={{ width: '81%' }} />
-        </div>
+        <span className="doc-lines">
+          <span className="doc-line doc-line--76" />
+          <span className="doc-line doc-line--88" />
+          <span className="doc-line doc-line--68" />
+          <span className="doc-line doc-sep doc-line--100" />
+          <span className="doc-line doc-line--92" />
+          <span className="doc-line doc-line--64" />
+          <span className="doc-line doc-line--84" />
+          <span className="doc-line doc-sep doc-line--100" />
+          <span className="doc-line doc-line--72" />
+          <span className="doc-line doc-line--90" />
+          <span className="doc-line doc-line--58" />
+          <span className="doc-line doc-line--81" />
+        </span>
 
-        <footer className="doc-footer">
+        <span className="doc-footer">
           <span className="doc-contact">hi@vaibhavmodi.com</span>
           <span className="doc-pdf">PDF</span>
-        </footer>
-      </article>
+        </span>
+        <span className="coffee-ring" />
+      </span>
 
-      <span className="resume-card__cta" aria-hidden="true">
+      <span className="sr-only">Open resume preview</span>
+      <span className="resume-card__cta">
         <span>click to open resume</span>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M3 7H10.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
           <path d="M8.5 5L10.5 7L8.5 9" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
-      <span className="coffee-ring" aria-hidden="true" />
+      </button>
+      <a
+        className="dl-arrow dl-arrow-button"
+        href={downloadHref}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Download resume"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M6 1.5V7.2" stroke="#6b6257" strokeWidth="1.1" strokeLinecap="round" />
+          <path d="M3.8 5.5L6 7.7L8.2 5.5" stroke="#6b6257" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M2.5 9.5H9.5" stroke="#6b6257" strokeWidth="1.1" strokeLinecap="round" />
+        </svg>
+      </a>
     </div>
   );
 }

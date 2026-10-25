@@ -2,9 +2,55 @@
   "version": 2,
   "framework": "vite",
   "rewrites": [
+    { "source": "/recruiter", "destination": "/index.html" },
+    { "source": "/friend", "destination": "/index.html" },
+    { "source": "/recruiter/", "destination": "/index.html" },
+    { "source": "/friend/", "destination": "/index.html" }
+  ],
+  "headers": [
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/fonts/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/images/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/og-image.png",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+        },
+        {
+          "key": "Reporting-Endpoints",
+          "value": "csp=\"/api/csp-report\""
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.googletagmanager.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://www.google.com https://*.g.doubleclick.net https://shared.steamstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://www.google.com https://*.g.doubleclick.net https://api.web3forms.com; frame-src https://drive.google.com; form-action 'self' https://api.web3forms.com; report-uri /api/csp-report; report-to csp; upgrade-insecure-requests"
+        }
+      ]
     }
   ]
 }

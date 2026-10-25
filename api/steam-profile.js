@@ -1,11 +1,49 @@
 const STEAM_API_BASE = 'https://api.steampowered.com';
 
-function json(response, statusCode, body) {
-  response.status(statusCode).setHeader('Content-Type', 'application/json');
-  response.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
-  response.setHeader('Access-Control-Allow-Origin', '*');
+const EXACT_ORIGINS = new Set([
+  'https://vaibhavmodi.com',
+  'https://www.vaibhavmodi.com',
+  'https://landing-zone-omega.vercel.app',
+]);
+
+// This project's preview hosts only. Anchored so a lookalike suffix on another
+// domain, another team's project, or a bare landing-zone.vercel.app cannot match.
+const PREVIEW_ORIGIN = /^https:\/\/landing-zone-[a-z0-9-]+-vaibhav-modis-projects\.vercel\.app$/;
+
+function readOrigin(request) {
+  const origin = request.headers?.origin ?? request.headers?.Origin;
+  if (Array.isArray(origin)) {
+    return origin[0] || '';
+  }
+  return typeof origin === 'string' ? origin : '';
+}
+
+export function isAllowedOrigin(origin) {
+  if (!origin) {
+    return false;
+  }
+
+  if (EXACT_ORIGINS.has(origin)) {
+    return true;
+  }
+
+  return PREVIEW_ORIGIN.test(origin);
+}
+
+function applyCors(request, response) {
+  const origin = readOrigin(request);
+  response.setHeader('Vary', 'Origin');
   response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (isAllowedOrigin(origin)) {
+    response.setHeader('Access-Control-Allow-Origin', origin);
+  }
+}
+
+function json(request, response, statusCode, body) {
+  response.status(statusCode).setHeader('Content-Type', 'application/json');
+  response.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
+  applyCors(request, response);
   response.send(JSON.stringify(body));
 }
 
@@ -93,11 +131,13 @@ function buildShowcaseGames(showcaseAppIds, ownedGames, recentGames) {
 
 export default async function handler(request, response) {
   if (request.method === 'OPTIONS') {
-    return json(response, 204, {});
+    applyCors(request, response);
+    response.status(204).send('');
+    return;
   }
 
   if (request.method !== 'GET') {
-    return json(response, 405, { error: 'method-not-allowed' });
+    return json(request, response, 405, { error: 'method-not-allowed' });
   }
 
   try {
@@ -122,7 +162,7 @@ export default async function handler(request, response) {
     const recentlyPlayed = recentGamesData?.response?.games ?? [];
     const showcaseGames = buildShowcaseGames(showcaseAppIds, ownedGames, recentlyPlayed);
 
-    return json(response, 200, {
+    return json(request, response, 200, {
       showcaseGames,
     });
   } catch (error) {
@@ -137,6 +177,7 @@ export default async function handler(request, response) {
             : 500
     );
 
-    return json(response, statusCode, { error: message });
+    console.error('[steam-profile]', message);
+    return json(request, response, statusCode, { error: 'unavailable' });
   }
 }
