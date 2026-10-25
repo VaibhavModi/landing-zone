@@ -45,8 +45,8 @@ Copy `.env.example` to `.env.local` when you need the optional integrations:
 
 The site deploys from `main` on the existing Vercel project. Security headers live in `vercel.json`. Do not change the Vercel project settings from this repo's workflow; environment variables are set in the Vercel dashboard.
 
-`/api/steam-profile` accepts browser calls from `https://www.vaibhavmodi.com`, `https://vaibhavmodi.com`, and `landing-zone*.vercel.app` preview hosts. Failures are logged on the server and returned to the client as a generic error.
+`/api/steam-profile` reflects `Access-Control-Allow-Origin` only for `https://vaibhavmodi.com`, `https://www.vaibhavmodi.com`, `https://landing-zone-omega.vercel.app`, and this project's preview hosts (`https://landing-zone-<id>-vaibhav-modis-projects.vercel.app`). Failures are logged on the server and returned to the client as a generic error.
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pull requests to `main` and on pushes to `main`. The job name is `ci` (the GitHub check is `CI / ci`). It installs with `npm ci`, builds, and scans the pull request or push commit range with gitleaks. There is no lint or typecheck script in this project, so CI does not run those steps.
+`.github/workflows/ci.yml` runs on pull requests to `main` and on pushes to `main`. The job name is `ci` (the GitHub check is `CI / ci`). It uses Node from `.nvmrc` (22), installs with `npm ci`, runs `npm run lint`, `npm test`, and `npm run build`, and scans the pull request or push commit range with gitleaks.

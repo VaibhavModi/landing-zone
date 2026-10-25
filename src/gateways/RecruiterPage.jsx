@@ -680,19 +680,18 @@ function ResumeCard({ downloadHref, onOpen }) {
       <button
         className="resume-card-open"
         type="button"
-        aria-label="Open resume preview"
         onClick={onOpen}
       >
-      <article className="doc desk-doc">
-        <span className="clip" aria-hidden="true" />
+      <span className="doc desk-doc" aria-hidden="true">
+        <span className="clip" />
 
-        <header>
-          <p className="doc-name">Vaibhav Modi</p>
-          <p className="doc-role">Lead Software Engineer</p>
-          <p className="doc-sections">Experience / Projects / Skills / Contact</p>
-        </header>
+        <span className="doc-head">
+          <span className="doc-name">Vaibhav Modi</span>
+          <span className="doc-role">Lead Software Engineer</span>
+          <span className="doc-sections">Experience / Projects / Skills / Contact</span>
+        </span>
 
-        <div className="doc-lines" aria-hidden="true">
+        <span className="doc-lines">
           <span className="doc-line doc-line--76" />
           <span className="doc-line doc-line--88" />
           <span className="doc-line doc-line--68" />
@@ -705,22 +704,23 @@ function ResumeCard({ downloadHref, onOpen }) {
           <span className="doc-line doc-line--90" />
           <span className="doc-line doc-line--58" />
           <span className="doc-line doc-line--81" />
-        </div>
+        </span>
 
-        <footer className="doc-footer">
+        <span className="doc-footer">
           <span className="doc-contact">hi@vaibhavmodi.com</span>
           <span className="doc-pdf">PDF</span>
-        </footer>
-      </article>
+        </span>
+        <span className="coffee-ring" />
+      </span>
 
-      <span className="resume-card__cta" aria-hidden="true">
+      <span className="sr-only">Open resume preview</span>
+      <span className="resume-card__cta">
         <span>click to open resume</span>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M3 7H10.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
           <path d="M8.5 5L10.5 7L8.5 9" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
-      <span className="coffee-ring" aria-hidden="true" />
       </button>
       <a
         className="dl-arrow dl-arrow-button"

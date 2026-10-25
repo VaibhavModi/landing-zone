@@ -100,9 +100,6 @@ export default function FriendPage() {
   useEffect(() => {
     const controller = new AbortController();
 
-    setLoadingState('loading');
-    setLoadError('');
-
     loadShowcase(controller.signal)
       .then((payload) => {
         setGames(payload.games);

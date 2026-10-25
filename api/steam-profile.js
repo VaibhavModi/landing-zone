@@ -1,8 +1,14 @@
 const STEAM_API_BASE = 'https://api.steampowered.com';
-const PRODUCTION_ORIGINS = new Set([
-  'https://www.vaibhavmodi.com',
+
+const EXACT_ORIGINS = new Set([
   'https://vaibhavmodi.com',
+  'https://www.vaibhavmodi.com',
+  'https://landing-zone-omega.vercel.app',
 ]);
+
+// This project's preview hosts only. Anchored so a lookalike suffix on another
+// domain, another team's project, or a bare landing-zone.vercel.app cannot match.
+const PREVIEW_ORIGIN = /^https:\/\/landing-zone-[a-z0-9-]+-vaibhav-modis-projects\.vercel\.app$/;
 
 function readOrigin(request) {
   const origin = request.headers?.origin ?? request.headers?.Origin;
@@ -12,24 +18,16 @@ function readOrigin(request) {
   return typeof origin === 'string' ? origin : '';
 }
 
-function isAllowedOrigin(origin) {
-  if (!origin || PRODUCTION_ORIGINS.has(origin)) {
-    return PRODUCTION_ORIGINS.has(origin);
-  }
-
-  let hostname = '';
-  try {
-    const url = new URL(origin);
-    if (url.protocol !== 'https:') {
-      return false;
-    }
-    hostname = url.hostname;
-  } catch {
+export function isAllowedOrigin(origin) {
+  if (!origin) {
     return false;
   }
 
-  return hostname === 'landing-zone.vercel.app'
-    || (hostname.startsWith('landing-zone-') && hostname.endsWith('.vercel.app'));
+  if (EXACT_ORIGINS.has(origin)) {
+    return true;
+  }
+
+  return PREVIEW_ORIGIN.test(origin);
 }
 
 function applyCors(request, response) {

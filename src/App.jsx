@@ -65,6 +65,7 @@ function Portrait({ alt, className, priority = false }) {
         width="500"
         height="666"
         decoding="async"
+        // eslint-disable-next-line react/no-unknown-property -- React 18.2 only forwards the lowercase attribute
         fetchpriority={priority ? 'high' : 'auto'}
       />
     </picture>
@@ -176,7 +177,7 @@ function HomeFrame({ openView }) {
             </div>
             <p className="home-factline">
               <span className="home-factline__label">fun fact</span>
-              Did you know Earth's moon is the only moon without a name?
+              Did you know Earth&apos;s moon is the only moon without a name?
             </p>
             <p className="currently-line">
               <span className="currently-label">Currently →</span>
@@ -344,11 +345,17 @@ function App() {
     upsertMeta('name', 'description', meta.description);
     upsertMeta('property', 'og:title', meta.title);
     upsertMeta('property', 'og:description', meta.description);
-    upsertMeta('property', 'og:url', `${SITE_URL}${path}`);
+    if (currentView !== 'not-found') {
+      upsertMeta('property', 'og:url', `${SITE_URL}${path}`);
+    }
     upsertMeta('name', 'twitter:title', meta.title);
     upsertMeta('name', 'twitter:description', meta.description);
     upsertMeta('name', 'robots', currentView === 'not-found' ? 'noindex' : 'all');
-    upsertCanonical(`${SITE_URL}${path}`);
+    if (currentView === 'not-found') {
+      document.head.querySelector('link[rel="canonical"]')?.remove();
+    } else {
+      upsertCanonical(`${SITE_URL}${path}`);
+    }
     const isLocal = /^(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(window.location.hostname);
     if (typeof window.gtag === 'function' && !isLocal) {
       window.gtag('event', 'page_view', {

@@ -1789,6 +1789,13 @@ button {
   position: relative;
 }
 
+.doc-head,
+.doc-name,
+.doc-role,
+.doc-sections {
+  display: block;
+}
+
 .doc-name {
   color: #2a2520;
   font-family: 'Newsreader', serif;
@@ -1943,8 +1950,8 @@ button {
 .resume-card-wrap > .dl-arrow {
   top: 8px;
   left: 8px;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   background: rgba(240, 236, 228, 0.7);
   border-radius: 4px;
   opacity: 0;
@@ -2612,8 +2619,8 @@ button {
   .resume-card-wrap > .dl-arrow {
     top: 6px;
     left: 6px;
-    width: 18px;
-    height: 18px;
+    width: 24px;
+    height: 24px;
     background: rgba(240, 236, 228, 0.85);
     border-radius: 3px;
     opacity: 1;
