@@ -713,7 +713,6 @@ function ResumeCard({ downloadHref, onOpen }) {
         <span className="coffee-ring" />
       </span>
 
-      <span className="sr-only">Open resume preview</span>
       <span className="resume-card__cta">
         <span>click to open resume</span>
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">

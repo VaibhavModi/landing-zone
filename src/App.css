@@ -199,6 +199,7 @@ button {
   justify-content: center;
   opacity: 0;
   overflow: hidden;
+  position: relative;
   visibility: hidden;
   width: 2.5rem;
 }
@@ -210,10 +211,14 @@ button {
 
 .header-photo {
   display: block;
-  margin-top: -0.6rem;
-  max-width: 118%;
-  transform: scale(1.1);
-  width: auto;
+  height: 100%;
+  inset: 0;
+  margin: 0;
+  max-width: none;
+  object-fit: cover;
+  object-position: center;
+  position: absolute;
+  width: 100%;
 }
 
 .topbar-links {
@@ -1981,7 +1986,7 @@ button {
 .coffee-ring {
   position: absolute;
   bottom: -6px;
-  left: -14px;
+  left: -36px;
   width: 50px;
   height: 50px;
   border-radius: 50%;
@@ -2627,7 +2632,16 @@ button {
   }
 
   .resume-card__cta {
-    display: none;
+    border: 0;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    opacity: 1;
+    overflow: hidden;
+    padding: 0;
+    white-space: nowrap;
+    width: 1px;
   }
 
   .mob-tap-hint {

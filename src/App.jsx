@@ -53,7 +53,38 @@ function normalizePathname(pathname) {
   return pathname;
 }
 
-function Portrait({ alt, className, priority = false }) {
+const HEADER_SIZES = '(max-width: 520px) 32px, 40px';
+
+function Portrait({ alt, className, priority = false, variant = 'hero' }) {
+  if (variant === 'header') {
+    return (
+      <picture>
+        <source
+          srcSet="/images/profile-portrait-header-64.avif 64w, /images/profile-portrait-header-128.avif 128w"
+          sizes={HEADER_SIZES}
+          type="image/avif"
+        />
+        <source
+          srcSet="/images/profile-portrait-header-64.webp 64w, /images/profile-portrait-header-128.webp 128w"
+          sizes={HEADER_SIZES}
+          type="image/webp"
+        />
+        <img
+          src="/images/profile-portrait-header-128.png"
+          srcSet="/images/profile-portrait-header-64.png 64w, /images/profile-portrait-header-128.png 128w"
+          sizes={HEADER_SIZES}
+          alt={alt}
+          className={className}
+          width="128"
+          height="128"
+          decoding="async"
+          // eslint-disable-next-line react/no-unknown-property -- React 18.2 only forwards the lowercase attribute
+          fetchpriority={priority ? 'high' : 'auto'}
+        />
+      </picture>
+    );
+  }
+
   return (
     <picture>
       <source srcSet="/images/profile-portrait.avif" type="image/avif" />
@@ -121,7 +152,7 @@ function Header({ activeView, goHome, switchLens }) {
       <a className="brand-lockup brand-lockup-link" href="/" onClick={handleHomeClick}>
         <span className={routeOpen ? 'header-photo-frame header-photo-frame--active' : 'header-photo-frame'}>
           <span className={routeOpen ? 'header-photo-wrap is-visible' : 'header-photo-wrap'} aria-hidden="true">
-            <Portrait alt="" className="header-photo" />
+            <Portrait alt="" className="header-photo" variant="header" />
           </span>
         </span>
         <span className="brand">vaibhav modi</span>

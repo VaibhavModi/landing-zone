@@ -30,7 +30,14 @@ describe('routes', () => {
   it('renders the recruiter page and the missing-key message', async () => {
     renderAt('/recruiter');
     expect(await screen.findByRole('heading', { name: /On AWS - ATX Refactor/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /open resume preview/i })).toBeInTheDocument();
+    const resume = screen.getByRole('button', { name: 'click to open resume' });
+    expect(resume).toHaveAccessibleName('click to open resume');
+    expect(resume).not.toHaveAttribute('aria-label');
+    expect(resume.textContent).not.toMatch(/open resume preview/i);
+    const header = document.querySelector('.header-photo');
+    expect(header).toHaveAttribute('width', '128');
+    expect(header).toHaveAttribute('height', '128');
+    expect(header.getAttribute('srcset')).toContain('64w');
     expect(screen.getByText(/contact form is not available right now/i)).toBeInTheDocument();
   });
 
