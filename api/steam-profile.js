@@ -1,4 +1,8 @@
+import { clientIp, consumeRateLimit, STEAM_PROFILE_LIMIT, STEAM_PROFILE_WINDOW_MS } from './rate-limit.js';
+
 const STEAM_API_BASE = 'https://api.steampowered.com';
+const SUCCESS_CACHE = 'public, s-maxage=300, stale-while-revalidate=600';
+const PRIVATE_CACHE = 'private, no-store';
 
 const EXACT_ORIGINS = new Set([
   'https://vaibhavmodi.com',
@@ -40,9 +44,9 @@ function applyCors(request, response) {
   }
 }
 
-function json(request, response, statusCode, body) {
+function json(request, response, statusCode, body, cacheControl = PRIVATE_CACHE) {
   response.status(statusCode).setHeader('Content-Type', 'application/json');
-  response.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
+  response.setHeader('Cache-Control', cacheControl);
   applyCors(request, response);
   response.send(JSON.stringify(body));
 }
@@ -140,6 +144,17 @@ export default async function handler(request, response) {
     return json(request, response, 405, { error: 'method-not-allowed' });
   }
 
+  // Best-effort per-IP limit for this instance. See api/rate-limit.js.
+  const limit = consumeRateLimit(
+    `steam:${clientIp(request)}`,
+    STEAM_PROFILE_LIMIT,
+    STEAM_PROFILE_WINDOW_MS
+  );
+  if (!limit.allowed) {
+    response.setHeader('Retry-After', String(limit.retryAfter));
+    return json(request, response, 429, { error: 'rate-limited' });
+  }
+
   try {
     const { apiKey, profileId, showcaseAppIds } = readRequiredConfig();
     const steamId = await resolveSteamId(apiKey, profileId);
@@ -164,7 +179,7 @@ export default async function handler(request, response) {
 
     return json(request, response, 200, {
       showcaseGames,
-    });
+    }, SUCCESS_CACHE);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown-error';
     const statusCode = (

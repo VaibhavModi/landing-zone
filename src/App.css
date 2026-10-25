@@ -191,14 +191,18 @@ button {
 
 .header-photo-wrap {
   align-items: center;
+  align-self: center;
+  aspect-ratio: 1;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--line);
   border-radius: 999px;
   display: inline-flex;
+  flex-shrink: 0;
   height: 2.5rem;
   justify-content: center;
   opacity: 0;
   overflow: hidden;
+  position: relative;
   visibility: hidden;
   width: 2.5rem;
 }
@@ -208,12 +212,21 @@ button {
   visibility: visible;
 }
 
+/* height: auto overrides the img height attribute so the used height follows
+   this square (aspect-ratio: 1) instead of the attribute's pixel hint. */
 .header-photo {
+  align-self: center;
+  aspect-ratio: 1;
   display: block;
-  margin-top: -0.6rem;
-  max-width: 118%;
-  transform: scale(1.1);
-  width: auto;
+  flex-shrink: 0;
+  height: auto;
+  margin: 0;
+  max-width: 100%;
+  min-height: 0;
+  min-width: 0;
+  object-fit: cover;
+  object-position: center top;
+  width: 100%;
 }
 
 .topbar-links {
@@ -1981,7 +1994,7 @@ button {
 .coffee-ring {
   position: absolute;
   bottom: -6px;
-  left: -14px;
+  left: -36px;
   width: 50px;
   height: 50px;
   border-radius: 50%;
@@ -2627,7 +2640,14 @@ button {
   }
 
   .resume-card__cta {
-    display: none;
+    border: 0;
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    white-space: nowrap;
+    width: 1px;
   }
 
   .mob-tap-hint {
