@@ -60,18 +60,18 @@ function Portrait({ alt, className, priority = false, variant = 'hero' }) {
     return (
       <picture>
         <source
-          srcSet="/images/profile-portrait-header-64.avif 64w, /images/profile-portrait-header-128.avif 128w"
+          srcSet="/images/profile-portrait-header-64-v2.avif 64w, /images/profile-portrait-header-128-v2.avif 128w"
           sizes={HEADER_SIZES}
           type="image/avif"
         />
         <source
-          srcSet="/images/profile-portrait-header-64.webp 64w, /images/profile-portrait-header-128.webp 128w"
+          srcSet="/images/profile-portrait-header-64-v2.webp 64w, /images/profile-portrait-header-128-v2.webp 128w"
           sizes={HEADER_SIZES}
           type="image/webp"
         />
         <img
-          src="/images/profile-portrait-header-128.png"
-          srcSet="/images/profile-portrait-header-64.png 64w, /images/profile-portrait-header-128.png 128w"
+          src="/images/profile-portrait-header-128-v2.png"
+          srcSet="/images/profile-portrait-header-64-v2.png 64w, /images/profile-portrait-header-128-v2.png 128w"
           sizes={HEADER_SIZES}
           alt={alt}
           className={className}

@@ -218,41 +218,102 @@ function empty(response, status) {
   response.status(status).send('');
 }
 
-// On Vercel, req.body is a lazy getter that consumes the request stream the
-// first time it is read. Nothing in this handler (or the shared limiter /
-// origin check) may touch request.body before the raw stream is read.
-// application/csp-report and application/reports+json are not parsed by the
-// Node helper, so bodyParser is off and the bytes are read here.
+const BODY_READ_TIMEOUT_MS = 2000;
+
+function toBuffer(chunk) {
+  if (Buffer.isBuffer(chunk)) return chunk;
+  if (chunk instanceof Uint8Array) return Buffer.from(chunk);
+  if (typeof chunk === 'string') return Buffer.from(chunk);
+  return Buffer.from(chunk);
+}
+
+function parsedFromChunks(chunks) {
+  if (!chunks.length) return null;
+  return parseBody(Buffer.concat(chunks).toString('utf8'));
+}
+
+// @vercel/node addHelpers runs serializeBody before the handler, then
+// restoreBody re-exposes that buffer only through req.read() and
+// req.on('data'|'end') (a PassThrough). The original stream is already
+// readableEnded and destroyed, so `for await` yields nothing. These
+// content types are not in getBodyParser, so req.body stays unset — do
+// not read it. An already-ended stream will not emit data/end; pull
+// req.read() instead. If nothing arrives, stop after 2s so the isolate
+// cannot hang.
+function readStream(request) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    let total = 0;
+    let settled = false;
+    let timer;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+
+    const push = (chunk) => {
+      if (settled || chunk == null) return true;
+      const buf = toBuffer(chunk);
+      if (buf.length === 0) return false;
+      if (total + buf.length > MAX_BODY_BYTES) {
+        finish({ tooBig: true });
+        return true;
+      }
+      total += buf.length;
+      chunks.push(buf);
+      return false;
+    };
+
+    const pullBuffered = () => {
+      if (typeof request.read !== 'function') return;
+      let guard = 0;
+      let chunk = request.read();
+      while (chunk != null && guard < 10000) {
+        guard += 1;
+        if (push(chunk)) return;
+        chunk = request.read();
+      }
+    };
+
+    if (request.readableEnded === true || request.complete === true) {
+      try {
+        pullBuffered();
+      } catch {
+        finish({ parsed: null });
+        return;
+      }
+      if (!settled) finish({ parsed: parsedFromChunks(chunks) });
+      return;
+    }
+
+    timer = setTimeout(() => {
+      finish({ parsed: parsedFromChunks(chunks) });
+    }, BODY_READ_TIMEOUT_MS);
+
+    if (typeof request.on === 'function') {
+      request.on('data', (chunk) => {
+        push(chunk);
+      });
+      request.on('end', () => {
+        if (!settled) finish({ parsed: parsedFromChunks(chunks) });
+      });
+      request.on('error', () => {
+        if (!settled) finish({ parsed: null });
+      });
+    }
+  });
+}
+
 async function readBody(request) {
   if (declaredLength(request) > MAX_BODY_BYTES) {
     return { tooBig: true };
   }
 
   if (isNodeStream(request)) {
-    const chunks = [];
-    let total = 0;
-    let tooBig = false;
-    try {
-      for await (const chunk of request) {
-        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-        if (total + buf.length > MAX_BODY_BYTES) {
-          tooBig = true;
-          break;
-        }
-        total += buf.length;
-        chunks.push(buf);
-      }
-    } catch {
-      return tooBig ? { tooBig: true } : { parsed: null };
-    }
-    if (tooBig) {
-      if (typeof request.destroy === 'function') {
-        request.destroy();
-      }
-      return { tooBig: true };
-    }
-    const text = chunks.length ? Buffer.concat(chunks).toString('utf8') : '';
-    return { parsed: parseBody(text) };
+    return readStream(request);
   }
 
   if (bodyByteLength(request.body) > MAX_BODY_BYTES) {
@@ -260,12 +321,6 @@ async function readBody(request) {
   }
   return { parsed: parseBody(request.body) };
 }
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
 
 // Browsers do not reliably send Origin or Referer on CSP reports. Reporting
 // API delivery sets the request origin, but its header list is only

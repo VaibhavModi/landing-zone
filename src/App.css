@@ -212,9 +212,8 @@ button {
   visibility: visible;
 }
 
-/* height: auto overrides the img height attribute. Without it the shared
-   portrait hint (500x666 on the home image) stays in effect and the avatar
-   is drawn at ~45x666 inside this circle. */
+/* height: auto overrides the img height attribute so the used height follows
+   this square (aspect-ratio: 1) instead of the attribute's pixel hint. */
 .header-photo {
   align-self: center;
   aspect-ratio: 1;

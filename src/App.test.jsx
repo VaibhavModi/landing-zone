@@ -37,7 +37,8 @@ describe('routes', () => {
     const header = document.querySelector('.header-photo');
     expect(header).toHaveAttribute('width', '128');
     expect(header).toHaveAttribute('height', '128');
-    expect(header.getAttribute('srcset')).toContain('64w');
+    expect(header.getAttribute('src')).toContain('profile-portrait-header-128-v2.png');
+    expect(header.getAttribute('srcset')).toContain('profile-portrait-header-64-v2.png 64w');
     expect(screen.getByText(/contact form is not available right now/i)).toBeInTheDocument();
   });
 
