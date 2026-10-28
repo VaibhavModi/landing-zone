@@ -51,4 +51,4 @@ The site deploys from `main` on the existing Vercel project. Security headers li
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pull requests to `main` and on pushes to `main`. The job name is `ci` (the GitHub check is `CI / ci`). It uses Node from `.nvmrc` (22), installs with `npm ci`, runs `npm run lint`, `npm test`, and `npm run build`, and scans the pull request or push commit range with gitleaks.
+`.github/workflows/ci.yml` runs on pull requests to `main` and on pushes to `main`. The job name is `ci` (the GitHub check is `CI / ci`). It uses Node from `.nvmrc` (22), installs with `npm ci`, runs `npm run lint`, `npm test`, and `npm run build`, then `npm run check:budget` on the built client chunks, and scans the pull request or push commit range with gitleaks. The budget check stays out of `npm run build` so a Vercel preview, which inlines `VITE_WEB3FORMS_KEY`, is not failed by a size that only differs from CI.

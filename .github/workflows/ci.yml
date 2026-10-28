@@ -37,6 +37,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Check client bundle budget
+        run: npm run check:budget
+
       - name: Install gitleaks
         run: |
           set -euo pipefail
