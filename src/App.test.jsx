@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
@@ -46,6 +47,42 @@ describe('routes', () => {
     renderAt('/friend/');
     expect(await screen.findByRole('heading', { name: /Games I'm currently playing/ })).toBeInTheDocument();
     expect(await screen.findByText('Counter-Strike 2')).toBeInTheDocument();
+  });
+
+  it('renders the projects gallery and links into captcha hell', async () => {
+    renderAt('/projects');
+    expect(await screen.findByRole('heading', { name: /things i built to make you smile/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /secure my website/i })).toHaveAttribute('href', '/projects/captcha-hell');
+    expect(screen.getAllByText(/more experiments loading/i)).toHaveLength(2);
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href'))
+      .toBe('https://www.vaibhavmodi.com/projects');
+  });
+
+  it('renders the captcha chooser without the punchline', async () => {
+    renderAt('/projects/captcha-hell/');
+    expect(await screen.findByRole('heading', { name: /human verification, reimagined with ai/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /verify you're human/i })).toBeInTheDocument();
+    expect(screen.getByText(/a parody project by vaibhav/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /officially a robot/i })).not.toBeInTheDocument();
+    expect(document.title).toMatch(/Captcha Hell/);
+  });
+
+  it('links projects from the home nav', () => {
+    renderAt('/');
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects');
+  });
+
+  it('does not preload the captcha game from the home loaders', async () => {
+    const source = readFileSync('src/App.jsx', 'utf8');
+    const loaders = source.match(/const routeLoaders = \{[\s\S]*?\};/);
+    expect(loaders?.[0]).not.toMatch(/captcha|ProjectsPage/);
+    const projects = readFileSync('src/projects/ProjectsPage.jsx', 'utf8');
+    expect(projects).not.toMatch(/captcha-hell\/game|scoreCircle|selectCannedExcuse/);
+  });
+
+  it('404s unknown project paths', async () => {
+    renderAt('/projects/other');
+    expect(await screen.findByRole('heading', { name: 'This doorway does not exist.' })).toBeInTheDocument();
   });
 
   it('renders the in-app 404 without a canonical', async () => {

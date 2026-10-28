@@ -20,6 +20,14 @@ const routeMeta = {
     title: 'Vaibhav Modi · Friend',
     description: 'Games Vaibhav Modi has been spending time with lately.',
   },
+  projects: {
+    title: 'Vaibhav Modi · Projects',
+    description: 'Small, playful projects by Vaibhav Modi, free to try.',
+  },
+  'captcha-hell': {
+    title: 'Captcha Hell · Vaibhav Modi',
+    description: 'Human verification, reimagined with AI. An experiment by Vaibhav Modi.',
+  },
   'not-found': {
     title: 'Vaibhav Modi · Page not found',
     description: 'That page is not part of Vaibhav Modi\'s site.',
@@ -106,9 +114,13 @@ function Portrait({ alt, className, priority = false, variant = 'hero' }) {
 
 const loadRecruiterPage = () => import('./gateways/RecruiterPage.jsx');
 const loadFriendPage = () => import('./gateways/FriendPage.jsx');
+const loadProjectsPage = () => import('./projects/ProjectsPage.jsx');
+const loadCaptchaHellPage = () => import('./projects/captcha-hell/CaptchaHellPage.jsx');
 
 const RecruiterPage = lazy(loadRecruiterPage);
 const FriendPage = lazy(loadFriendPage);
+const ProjectsPage = lazy(loadProjectsPage);
+const CaptchaHellPage = lazy(loadCaptchaHellPage);
 
 const gateways = {
   recruiter: {
@@ -129,18 +141,53 @@ const gateways = {
 };
 
 const gatewayOrder = ['recruiter', 'friend'];
-const validViews = new Set(['home', ...gatewayOrder]);
 const routeComponents = {
   recruiter: RecruiterPage,
   friend: FriendPage,
 };
+// Home preloads the two gateway pages only. The captcha game stays out of
+// this list so its chunk is fetched only on /projects/captcha-hell.
 const routeLoaders = {
   recruiter: loadRecruiterPage,
   friend: loadFriendPage,
 };
 
-function Header({ activeView, goHome, switchLens }) {
-  const routeOpen = activeView === 'recruiter' || activeView === 'friend';
+const VIEW_PATH = {
+  home: '/',
+  recruiter: '/recruiter',
+  friend: '/friend',
+  projects: '/projects',
+  'captcha-hell': '/projects/captcha-hell',
+};
+
+const PATH_VIEW = Object.fromEntries(
+  Object.entries(VIEW_PATH).map(([view, path]) => [path, view]),
+);
+
+const SITE_NAV = [
+  { view: 'home', label: 'Home' },
+  { view: 'recruiter', label: 'Recruiter' },
+  { view: 'friend', label: 'Friend' },
+  { view: 'projects', label: 'Projects' },
+];
+
+function viewFromPath(pathname) {
+  return PATH_VIEW[normalizePathname(pathname)] ?? 'not-found';
+}
+
+function navIsCurrent(view, activeView) {
+  if (view === 'projects') return activeView === 'projects' || activeView === 'captcha-hell';
+  return view === activeView;
+}
+
+function Header({ activeView, goHome, onNavigate }) {
+  const routeOpen = activeView !== 'home' && activeView !== 'not-found';
+
+  const follow = (event, view) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    event.preventDefault();
+    onNavigate(view);
+  };
 
   const handleHomeClick = (event) => {
     event.preventDefault();
@@ -158,22 +205,35 @@ function Header({ activeView, goHome, switchLens }) {
         <span className="brand">vaibhav modi</span>
       </a>
 
-      {routeOpen && (
-        <nav className="lens-toggle" aria-label="Switch view">
-          {gatewayOrder.map((key) => (
-            <button
-              key={key}
-              className={`lens-btn${activeView === key ? ` lens-btn--active lens-btn--${gateways[key].accent}` : ''}`}
-              onClick={() => switchLens(key)}
-              type="button"
-              aria-pressed={activeView === key}
+      <nav className="site-nav" aria-label="Site">
+        {SITE_NAV.map((item) => {
+          const current = navIsCurrent(item.view, activeView);
+          const gold = current && item.view === 'friend';
+          return (
+            <a
+              key={item.view}
+              href={VIEW_PATH[item.view]}
+              aria-current={current ? 'page' : undefined}
+              className={gold ? 'is-gold' : undefined}
+              onClick={(event) => follow(event, item.view)}
             >
-              {gateways[key].label}
-            </button>
-          ))}
-        </nav>
-      )}
+              {item.label}
+            </a>
+          );
+        })}
+      </nav>
     </header>
+  );
+}
+
+function RouteFallback({ label }) {
+  return (
+    <section className="route-frame route-frame--wide">
+      <div className="route-frame__inner route-frame__inner--wide">
+        <p className="eyebrow">Loading</p>
+        <h1>{label}</h1>
+      </div>
+    </section>
   );
 }
 
@@ -333,12 +393,12 @@ function Footer() {
 
 function App() {
   const [pathname, setPathname] = useState(() => normalizePathname(window.location.pathname));
-  const pathView = pathname === '/' ? 'home' : pathname.slice(1);
-  const currentView = validViews.has(pathView) ? pathView : 'not-found';
+  const currentView = viewFromPath(pathname);
 
   const openView = (view) => {
-    const nextPath = view === 'home' ? '/' : `/${view}`;
-    if (window.location.pathname !== nextPath) {
+    const nextPath = VIEW_PATH[view];
+    if (!nextPath) return;
+    if (normalizePathname(window.location.pathname) !== nextPath) {
       window.history.pushState(
         {
           appPath: view,
@@ -367,11 +427,7 @@ function App() {
 
   useEffect(() => {
     const meta = routeMeta[currentView] ?? routeMeta['not-found'];
-    const path = currentView === 'home'
-      ? '/'
-      : currentView === 'not-found'
-        ? pathname
-        : `/${currentView}`;
+    const path = currentView === 'not-found' ? pathname : (VIEW_PATH[currentView] ?? pathname);
     document.title = meta.title;
     upsertMeta('name', 'description', meta.description);
     upsertMeta('property', 'og:title', meta.title);
@@ -465,12 +521,20 @@ function App() {
       <div className="site-noise" aria-hidden="true" />
 
       <main className="operator-stage">
-        <Header activeView={currentView} goHome={goHome} switchLens={openView} />
+        <Header activeView={currentView} goHome={goHome} onNavigate={openView} />
 
         {currentView === 'home' ? (
           <HomeFrame openView={openView} />
         ) : currentView === 'not-found' ? (
           <NotFoundFrame goHome={goHome} />
+        ) : currentView === 'projects' ? (
+          <Suspense fallback={<RouteFallback label="Projects" />}>
+            <ProjectsPage openView={openView} />
+          </Suspense>
+        ) : currentView === 'captcha-hell' ? (
+          <Suspense fallback={<RouteFallback label="Captcha Hell" />}>
+            <CaptchaHellPage openView={openView} />
+          </Suspense>
         ) : (
           <RouteFrame key={currentView} view={currentView} goHome={goHome} />
         )}

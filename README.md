@@ -20,9 +20,11 @@ The Vercel project is `landing-zone`. Pushes to `main` deploy automatically.
 | `/` | Home gateway. Recruiter and Friend, with `R` and `F` shortcuts. |
 | `/recruiter` | Work, resume preview, and the contact form. |
 | `/friend` | Games pulled from `/api/steam-profile`. |
+| `/projects` | Project gallery. Captcha Hell is the featured experiment. |
+| `/projects/captcha-hell` | Captcha Hell, a two-check parody. Its game code loads only on this route. |
 | anything else | In-app 404. On Vercel this is also an HTTP 404. |
 
-`/recruiter` and `/friend` rewrite to `index.html`. Other unknown URLs are not rewritten; the build copies `index.html` to `404.html`, which Vercel serves with status 404. The app then renders the same 404 screen. `vite preview` still falls back to `index.html` with status 200, because it does not apply `vercel.json`.
+`/recruiter`, `/friend`, `/projects`, and `/projects/captcha-hell` rewrite to `index.html`. Other unknown URLs are not rewritten; the build copies `index.html` to `404.html`, which Vercel serves with status 404. The app then renders the same 404 screen. `vite preview` still falls back to `index.html` with status 200, because it does not apply `vercel.json`.
 
 ## Run locally
 
