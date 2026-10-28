@@ -20,9 +20,11 @@ The Vercel project is `landing-zone`. Pushes to `main` deploy automatically.
 | `/` | Home gateway. Recruiter and Friend, with `R` and `F` shortcuts. |
 | `/recruiter` | Work, resume preview, and the contact form. |
 | `/friend` | Games pulled from `/api/steam-profile`. |
+| `/projects` | Project gallery. Captcha Hell is the featured experiment. |
+| `/projects/captcha-hell` | Captcha Hell, a two-check parody. Its game code loads only on this route. |
 | anything else | In-app 404. On Vercel this is also an HTTP 404. |
 
-`/recruiter` and `/friend` rewrite to `index.html`. Other unknown URLs are not rewritten; the build copies `index.html` to `404.html`, which Vercel serves with status 404. The app then renders the same 404 screen. `vite preview` still falls back to `index.html` with status 200, because it does not apply `vercel.json`.
+`/recruiter`, `/friend`, `/projects`, and `/projects/captcha-hell` rewrite to `index.html`. Other unknown URLs are not rewritten; the build copies `index.html` to `404.html`, which Vercel serves with status 404. The app then renders the same 404 screen. `vite preview` still falls back to `index.html` with status 200, because it does not apply `vercel.json`.
 
 ## Run locally
 
@@ -49,4 +51,4 @@ The site deploys from `main` on the existing Vercel project. Security headers li
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pull requests to `main` and on pushes to `main`. The job name is `ci` (the GitHub check is `CI / ci`). It uses Node from `.nvmrc` (22), installs with `npm ci`, runs `npm run lint`, `npm test`, and `npm run build`, and scans the pull request or push commit range with gitleaks.
+`.github/workflows/ci.yml` runs on pull requests to `main` and on pushes to `main`. The job name is `ci` (the GitHub check is `CI / ci`). It uses Node from `.nvmrc` (22), installs with `npm ci`, runs `npm run lint`, `npm test`, and `npm run build`, then `npm run check:budget` on the built client chunks, and scans the pull request or push commit range with gitleaks. The budget check stays out of `npm run build` so a Vercel preview, which inlines `VITE_WEB3FORMS_KEY`, is not failed by a size that only differs from CI.

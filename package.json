@@ -16,6 +16,7 @@
     "start": "vite",
     "dev": "vite",
     "build": "vite build",
+    "check:budget": "node scripts/check-bundle-budget.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run"

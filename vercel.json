@@ -5,7 +5,11 @@
     { "source": "/recruiter", "destination": "/index.html" },
     { "source": "/friend", "destination": "/index.html" },
     { "source": "/recruiter/", "destination": "/index.html" },
-    { "source": "/friend/", "destination": "/index.html" }
+    { "source": "/friend/", "destination": "/index.html" },
+    { "source": "/projects", "destination": "/index.html" },
+    { "source": "/projects/", "destination": "/index.html" },
+    { "source": "/projects/captcha-hell", "destination": "/index.html" },
+    { "source": "/projects/captcha-hell/", "destination": "/index.html" }
   ],
   "headers": [
     {
