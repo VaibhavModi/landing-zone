@@ -9,7 +9,7 @@ import {
   validateExcusePayload,
 } from '../src/projects/captcha-hell/game/excusePayload.js';
 
-export const VISITOR_PER_HOUR = 3;
+export const VISITOR_PER_HOUR = 100;
 export const VISITOR_WINDOW = '1 h';
 export const GLOBAL_PER_DAY = 600;
 export const GLOBAL_WINDOW = '1 d';

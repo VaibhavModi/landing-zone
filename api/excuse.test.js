@@ -147,7 +147,7 @@ describe('handleExcuse', () => {
     expect(response.statusCode).toBe(400);
   });
 
-  it('blocks the fourth visitor call in an hour', async () => {
+  it('blocks the 101st visitor call in an hour', async () => {
     process.env.GROQ_API_KEY = 'gsk_test_only';
     const fetchImpl = vi.fn(async () => groqSuccess('Wrist tremor, not a toolpath.'));
     let visitorCalls = 0;
@@ -168,15 +168,15 @@ describe('handleExcuse', () => {
       },
       global: { async limit() { return { success: true }; } },
     };
-    for (const roundness of [10, 40, 70]) {
+    for (let index = 0; index < VISITOR_PER_HOUR; index += 1) {
       const response = mockResponse();
-      const payload = buildExcusePayload('circle', { ...circleSignals, roundness });
+      const payload = buildExcusePayload('circle', { ...circleSignals, roundness: index * 10 });
       await handleExcuse(request(payload), response, { fetchImpl, gates });
       expect(response.statusCode).toBe(200);
     }
     const blocked = mockResponse();
     await handleExcuse(
-      request(buildExcusePayload('circle', { ...circleSignals, roundness: 95 })),
+      request(buildExcusePayload('circle', { ...circleSignals, roundness: VISITOR_PER_HOUR * 10 })),
       blocked,
       { fetchImpl, gates },
     );
@@ -338,7 +338,7 @@ describe('handleExcuse', () => {
       .not.toBe(signalBrief(buildExcusePayload('circle', { ...circleSignals, roundness: 88 })).key);
   });
 
-  it('configures three roasts an hour and a global cap of 600', () => {
+  it('configures 100 roasts an hour and a global cap of 600', () => {
     process.env.UPSTASH_REDIS_REST_URL = 'https://example.upstash.io';
     process.env.UPSTASH_REDIS_REST_TOKEN = 'token';
     const sliding = vi.spyOn(Ratelimit, 'slidingWindow');
@@ -346,7 +346,7 @@ describe('handleExcuse', () => {
     expect(createExcuseGates()).not.toBeNull();
     expect(sliding).toHaveBeenCalledWith(VISITOR_PER_HOUR, VISITOR_WINDOW);
     expect(fixed).toHaveBeenCalledWith(GLOBAL_PER_DAY, GLOBAL_WINDOW);
-    expect(VISITOR_PER_HOUR).toBe(3);
+    expect(VISITOR_PER_HOUR).toBe(100);
     expect(GLOBAL_PER_DAY).toBe(600);
   });
 });
