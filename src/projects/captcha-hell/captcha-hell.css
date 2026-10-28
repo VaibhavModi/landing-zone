@@ -176,7 +176,7 @@
   background: #eceff3;
   border: 1px dashed #c9ced6;
   border-radius: 0.65rem;
-  color: #8b98a9;
+  color: #5f6b7a;
   display: flex;
   font-size: 0.82rem;
   gap: 0.5rem;
@@ -199,7 +199,7 @@
 
 .ch-protect {
   align-items: center;
-  color: #8b98a9;
+  color: #5f6b7a;
   display: inline-flex;
   font-size: 0.72rem;
   gap: 0.35rem;
