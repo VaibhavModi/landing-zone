@@ -4,6 +4,7 @@ import CatRound from './CatRound.jsx';
 import CircleRound, { CircleSketch } from './CircleRound.jsx';
 import { humanityVerdict } from './circleScore.js';
 import { excuseFromSignals } from './excuseContract.js';
+import { ANALYZING_LABEL, requestExcuseLine } from './requestExcuse.js';
 import MethodPicker, { ShieldMark } from './MethodPicker.jsx';
 import {
   acknowledgeVerdict,
@@ -20,9 +21,24 @@ function formatSeconds(ms) {
   return (Math.max(0, ms) / 1000).toFixed(1);
 }
 
-function Verdict({ round, artwork }) {
+function AnalyzingLine() {
+  return (
+    <p className="ch-verdict__line">
+      Analyzing behavioral signature
+      <span className="ch-dots" aria-hidden="true">
+        <span>.</span>
+        <span>.</span>
+        <span>.</span>
+      </span>
+    </p>
+  );
+}
+
+function Verdict({ round, artwork, line }) {
   const circle = round.method === 'circle';
   const signals = round.signals;
+  const analyzing = line?.status === 'analyzing' && line.incident === round.incident;
+  const text = line?.incident === round.incident && line.status === 'ready' ? line.text : round.excuse;
   return (
     <div className="ch-round">
       {circle && artwork?.points ? (
@@ -61,7 +77,9 @@ function Verdict({ round, artwork }) {
           NOT HUMAN · INCIDENT #
           {round.incident}
         </strong>
-        <p>{round.excuse}</p>
+        <div className="ch-verdict__slot">
+          {analyzing ? <AnalyzingLine /> : <p className="ch-verdict__line">{text}</p>}
+        </div>
         {circle ? (
           <p className="ch-humanity">
             Humanity:
@@ -136,6 +154,9 @@ export default function VerificationFlow() {
   const [state, setState] = useState(createVerificationState);
   const [announcement, setAnnouncement] = useState('');
   const [artwork, setArtwork] = useState(null);
+  const [line, setLine] = useState(null);
+  const flight = useRef(null);
+  const mounted = useRef(true);
   const startRef = useRef(null);
   const certTitle = useRef(null);
   const unlocked = state.phase === 'certificate';
@@ -151,6 +172,30 @@ export default function VerificationFlow() {
     if (unlocked) certTitle.current?.focus();
   }, [unlocked]);
 
+  useEffect(() => () => {
+    mounted.current = false;
+    flight.current?.controller.abort();
+  }, []);
+
+  const publishLine = (incident, text) => {
+    if (!mounted.current) return;
+    if (flight.current?.incident !== incident) return;
+    setLine({ status: 'ready', incident, text });
+    setAnnouncement(text);
+  };
+
+  const askForLine = (result) => {
+    if (flight.current?.incident === result.incident) return;
+    const controller = new AbortController();
+    flight.current = { incident: result.incident, controller };
+    setLine({ status: 'analyzing', incident: result.incident, text: result.text });
+    setAnnouncement(ANALYZING_LABEL);
+    requestExcuseLine(result.payload, { signal: controller.signal }).then((aiText) => {
+      if (controller.signal.aborted) return;
+      publishLine(result.incident, aiText || result.text);
+    });
+  };
+
   const onStart = () => {
     setAnnouncement(state.selected === 'cat'
       ? 'Empathy check. Pet the cat.'
@@ -158,29 +203,30 @@ export default function VerificationFlow() {
     setState((current) => startSelected(current));
   };
 
-  const finishCircle = (score, points) => {
-    const merged = { ...score, ...humanityVerdict(score.roundness) };
-    const result = excuseFromSignals('circle', merged);
-    setArtwork({ points, score: merged });
-    setAnnouncement(
-      `${result.text} Humanity ${merged.humanity.toFixed(1)} percent. Required ${merged.required.toFixed(1)} percent.`,
-    );
+  const finishRound = (method, result, nextArtwork) => {
+    const isFinal = state.failed.length === 1 && !state.failed.includes(method);
+    if (method === 'circle') setArtwork(nextArtwork);
+    else setArtwork(null);
     setState((current) => completeRound(current, {
       signals: result.payload,
       excuse: result.text,
       incident: result.incident,
     }));
+    if (!isFinal) {
+      setLine({ status: 'ready', incident: result.incident, text: result.text });
+      setAnnouncement(result.text);
+      return;
+    }
+    askForLine(result);
+  };
+
+  const finishCircle = (score, points) => {
+    const merged = { ...score, ...humanityVerdict(score.roundness) };
+    finishRound('circle', excuseFromSignals('circle', merged), { points, score: merged });
   };
 
   const finishCat = (score) => {
-    const result = excuseFromSignals('cat', score);
-    setArtwork(null);
-    setAnnouncement(`${result.text} The cat has filed a report.`);
-    setState((current) => completeRound(current, {
-      signals: result.payload,
-      excuse: result.text,
-      incident: result.incident,
-    }));
+    finishRound('cat', excuseFromSignals('cat', score), null);
   };
 
   let widget;
@@ -203,7 +249,7 @@ export default function VerificationFlow() {
         title={last.method === 'circle' ? 'Analyzing your circle…' : 'The cat has filed a report.'}
         lede={last.method === 'circle' ? 'Suspicious bump marked.' : 'Reviewing your petting technique…'}
       >
-        <Verdict round={last} artwork={last.method === 'circle' ? artwork : null} />
+        <Verdict round={last} artwork={last.method === 'circle' ? artwork : null} line={line} />
         {state.phase === 'verdict' ? (
           <button
             className="ch-go ch-go--block"
