@@ -16,15 +16,15 @@ export const GLOBAL_WINDOW = '1 d';
 export const POOL_SIZE = 8;
 export const CACHE_TTL_SECONDS = 24 * 60 * 60;
 export const CALL_TIMEOUT_MS = 1200;
-export const MAX_TOKENS = 120;
-export const TOKEN_WARN = 300;
+export const MAX_TOKENS = 200;
+export const TOKEN_WARN = 350;
 export const MODEL_PRIMARY = 'openai/gpt-oss-20b';
 export const MODEL_FALLBACK = 'openai/gpt-oss-120b';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const SYSTEM_PROMPT = [
-  'You are a smug CAPTCHA gatekeeper. Write ONE witty sentence of at most 20 words rejecting this visitor as too human or too robotic based on how they drew or clicked.',
-  'Never quote numbers or units.',
+  'Smug CAPTCHA gatekeeper. ONE witty sentence, 20 words max: too human or too robotic, from how they drew or clicked.',
+  'No numbers or units.',
 ].join('\n');
 
 let cachedGates;
@@ -146,7 +146,7 @@ async function callModel(fetchImpl, apiKey, model, line) {
   const data = await response.json();
   logUsage(model, data?.usage);
   const choice = data?.choices?.[0];
-  const text = usableModelLine(choice?.message?.content, choice?.finish_reason, line);
+  const text = usableModelLine(choice?.message?.content, choice?.finish_reason);
   return text ? { status: 200, text } : { status: 204 };
 }
 

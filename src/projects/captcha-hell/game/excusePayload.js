@@ -128,31 +128,19 @@ export function validateExcusePayload(value) {
   };
 }
 
-const URL_PATTERN = /(?:https?:\/\/|www\.)\S+/gi;
+const URL_PATTERN = /(?:https?:\/\/|www\.)\S+/i;
 
-function longWords(value) {
-  return value.toLowerCase().match(/[a-z]{5,}/g) ?? [];
-}
-
-function echoesPrompt(line, prompt) {
-  const source = new Set(longWords(prompt));
-  const copied = longWords(line).filter((word) => source.has(word));
-  return copied.length >= 2;
-}
-
-export function sanitizeExcuseLine(raw, prompt = '') {
+export function sanitizeExcuseLine(raw) {
   if (typeof raw !== 'string') return '';
-  let text = Array.from(raw, (char) => {
+  const text = Array.from(raw, (char) => {
     const code = char.charCodeAt(0);
     return code < 32 || code === 127 ? ' ' : char;
-  }).join('').replace(/\s+/g, ' ').trim();
-  text = text.replace(/^["'`]+|["'`]+$/g, '').trim();
-  text = text.replace(URL_PATTERN, '').replace(/\s+/g, ' ').trim();
-  if (!text || text.length > MAX_EXCUSE_CHARS || /\d/.test(text) || echoesPrompt(text, prompt)) return '';
+  }).join('').replace(/\s+/g, ' ').trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+  if (!text || text.length > MAX_EXCUSE_CHARS || /\d/.test(text) || URL_PATTERN.test(text)) return '';
   return text;
 }
 
-export function usableModelLine(content, finishReason, prompt = '') {
+export function usableModelLine(content, finishReason) {
   if (finishReason === 'length') return '';
-  return sanitizeExcuseLine(content, prompt);
+  return sanitizeExcuseLine(content);
 }

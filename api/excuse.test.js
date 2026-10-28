@@ -4,8 +4,10 @@ import {
   CALL_TIMEOUT_MS,
   GLOBAL_PER_DAY,
   GLOBAL_WINDOW,
+  MAX_TOKENS,
   MODEL_FALLBACK,
   MODEL_PRIMARY,
+  TOKEN_WARN,
   VISITOR_PER_HOUR,
   VISITOR_WINDOW,
   createExcuseGates,
@@ -221,7 +223,7 @@ describe('handleExcuse', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const fetchImpl = vi.fn()
       .mockResolvedValueOnce(groqSuccess('', { finish: 'stop' }))
-      .mockResolvedValueOnce(groqSuccess('This line was cut', { finish: 'length', total: 320 }));
+      .mockResolvedValueOnce(groqSuccess('This line was cut', { finish: 'length', total: 380 }));
     const empty = mockResponse();
     await handleExcuse(request(buildExcusePayload('circle', circleSignals)), empty, {
       fetchImpl,
@@ -240,7 +242,9 @@ describe('handleExcuse', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalled();
     const logs = [...info.mock.calls, ...warn.mock.calls].flat().join(' ');
-    expect(logs).toMatch(/prompt=18 completion=302 total=320/);
+    expect(logs).toMatch(/prompt=18 completion=362 total=380/);
+    expect(logs).toMatch(new RegExp(`token total 380 exceeds ${TOKEN_WARN}`));
+    expect(TOKEN_WARN).toBe(350);
     expect(logs).not.toContain('gsk_test_only');
     expect(logs).not.toContain('203.0.113.10');
   });
@@ -261,7 +265,8 @@ describe('handleExcuse', () => {
     await handleExcuse(request(payload), second, { fetchImpl, gates });
     expect(first.statusCode).toBe(200);
     expect(second.statusCode).toBe(200);
-    expect(bodies[0].max_tokens).toBe(120);
+    expect(bodies[0].max_tokens).toBe(MAX_TOKENS);
+    expect(MAX_TOKENS).toBe(200);
     expect(bodies[0].reasoning_effort).toBe('low');
     expect(bodies[0].stream).toBe(false);
     expect(bodies[0].messages[1].content).toBe(signalBrief(payload).line);
@@ -372,11 +377,15 @@ describe('signal words and sanitizer', () => {
     expect(cat.key.startsWith(`${CACHE_KEY_PREFIX}cat:`)).toBe(true);
   });
 
-  it('rejects digits and lines that copy the prompt', () => {
-    const prompt = 'circle: roundness 60%, took 2.5 seconds, wobbly';
-    expect(sanitizeExcuseLine('Circle radius 0.6, time 2.5, jump 0.3.', prompt)).toBe('');
-    expect(sanitizeExcuseLine('The roundness was wobbly for several seconds.', prompt)).toBe('');
-    expect(sanitizeExcuseLine('Too mechanical to trust.', prompt)).toBe('Too mechanical to trust.');
+  it('rejects digits, URLs, and empty lines, and keeps wording from the prompt', () => {
+    expect(sanitizeExcuseLine('Circle radius 0.6, time 2.5, jump 0.3.')).toBe('');
+    expect(sanitizeExcuseLine('See https://evil.example/roast')).toBe('');
+    expect(sanitizeExcuseLine('   ')).toBe('');
+    expect(sanitizeExcuseLine('')).toBe('');
+    expect(sanitizeExcuseLine('The roundness was wobbly for several seconds.')).toBe(
+      'The roundness was wobbly for several seconds.',
+    );
+    expect(sanitizeExcuseLine('Too mechanical to trust.')).toBe('Too mechanical to trust.');
   });
 });
 
