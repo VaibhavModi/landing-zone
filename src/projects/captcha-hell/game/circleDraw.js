@@ -1,4 +1,14 @@
-import { CIRCLE_SPACE } from './circleScore.js';
+import { CIRCLE_SIDE } from './circleScore.js';
+
+function canvasSquare(cssWidth, cssHeight) {
+  const side = Math.min(cssWidth, cssHeight);
+  return {
+    side,
+    originX: (cssWidth - side) / 2,
+    originY: (cssHeight - side) / 2,
+    scale: side / CIRCLE_SIDE,
+  };
+}
 
 export function paintCircle(canvas, points, { dpr = 1, score = null, showGuide = false, pen = null } = {}) {
   if (!canvas) return;
@@ -12,8 +22,11 @@ export function paintCircle(canvas, points, { dpr = 1, score = null, showGuide =
 
   const width = canvas.width / dpr;
   const height = canvas.height / dpr;
-  const mapX = (x) => (x / CIRCLE_SPACE.w) * width;
-  const mapY = (y) => (y / CIRCLE_SPACE.h) * height;
+  const square = canvasSquare(width, height);
+  const mapPoint = (x, y) => ({
+    x: square.originX + x * square.scale,
+    y: square.originY + y * square.scale,
+  });
 
   context.setTransform(dpr, 0, 0, dpr, 0, 0);
   context.clearRect(0, 0, width, height);
@@ -25,10 +38,9 @@ export function paintCircle(canvas, points, { dpr = 1, score = null, showGuide =
     context.strokeStyle = '#e8467c';
     context.lineWidth = 5;
     points.forEach((point, index) => {
-      const x = mapX(point.x);
-      const y = mapY(point.y);
-      if (index === 0) context.moveTo(x, y);
-      else context.lineTo(x, y);
+      const mapped = mapPoint(point.x, point.y);
+      if (index === 0) context.moveTo(mapped.x, mapped.y);
+      else context.lineTo(mapped.x, mapped.y);
     });
     context.stroke();
   }
@@ -38,21 +50,15 @@ export function paintCircle(canvas, points, { dpr = 1, score = null, showGuide =
     context.setLineDash([5, 5]);
     context.strokeStyle = '#9aa3b2';
     context.lineWidth = 2;
-    context.ellipse(
-      mapX(score.centerX),
-      mapY(score.centerY),
-      (score.radius / CIRCLE_SPACE.w) * width,
-      (score.radius / CIRCLE_SPACE.h) * height,
-      0,
-      0,
-      Math.PI * 2,
-    );
+    const center = mapPoint(score.centerX, score.centerY);
+    context.arc(center.x, center.y, score.radius * square.scale, 0, Math.PI * 2);
     context.stroke();
     context.setLineDash([]);
     const bump = points?.[score.bumpIndex];
     if (bump) {
-      const bx = mapX(bump.x);
-      const by = mapY(bump.y);
+      const mappedBump = mapPoint(bump.x, bump.y);
+      const bx = mappedBump.x;
+      const by = mappedBump.y;
       context.beginPath();
       context.strokeStyle = '#ff5a6e';
       context.lineWidth = 2;
@@ -68,7 +74,8 @@ export function paintCircle(canvas, points, { dpr = 1, score = null, showGuide =
   if (pen) {
     context.beginPath();
     context.fillStyle = '#e8467c';
-    context.arc(mapX(pen.x), mapY(pen.y), 4, 0, Math.PI * 2);
+    const cursor = mapPoint(pen.x, pen.y);
+    context.arc(cursor.x, cursor.y, 4, 0, Math.PI * 2);
     context.fill();
   }
 }

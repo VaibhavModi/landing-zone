@@ -1,6 +1,26 @@
 import { clamp, round3 } from './numbers.js';
 
-export const CIRCLE_SPACE = { w: 300, h: 340 };
+/** Square drawing space. One side length so x and y share a radius. */
+export const CIRCLE_SIDE = 300;
+export const CIRCLE_SPACE = { w: CIRCLE_SIDE, h: CIRCLE_SIDE };
+
+/**
+ * Map a pointer position through the centered square inscribed in the pad.
+ * Width and height use the same scale, so a circle stays a circle at any pad size.
+ */
+export function mapPadPoint(clientX, clientY, rect, time = 0) {
+  const width = rect?.width > 0 ? rect.width : CIRCLE_SIDE;
+  const height = rect?.height > 0 ? rect.height : CIRCLE_SIDE;
+  const side = Math.min(width, height);
+  const originX = (rect?.left || 0) + (width - side) / 2;
+  const originY = (rect?.top || 0) + (height - side) / 2;
+  const scale = CIRCLE_SIDE / side;
+  return {
+    x: (clientX - originX) * scale,
+    y: (clientY - originY) * scale,
+    t: time,
+  };
+}
 
 function finitePoints(points) {
   return (points ?? []).filter(

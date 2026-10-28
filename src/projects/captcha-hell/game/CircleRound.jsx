@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { paintCircle } from './circleDraw.js';
-import { CIRCLE_SPACE, scoreCircle } from './circleScore.js';
+import { CIRCLE_SPACE, mapPadPoint, scoreCircle } from './circleScore.js';
 
 const STEP = 16;
 
@@ -119,15 +119,12 @@ export default function CircleRound({ onComplete, onAnnounce }) {
     publish(false);
   };
 
-  const localPoint = (event) => {
-    const rect = padRef.current.getBoundingClientRect();
-    const width = rect.width || CIRCLE_SPACE.w;
-    const height = rect.height || CIRCLE_SPACE.h;
-    return {
-      x: ((event.clientX - rect.left) / width) * CIRCLE_SPACE.w,
-      y: ((event.clientY - rect.top) / height) * CIRCLE_SPACE.h,
-    };
-  };
+  const localPoint = (event) => mapPadPoint(
+    event.clientX,
+    event.clientY,
+    padRef.current.getBoundingClientRect(),
+    performance.now(),
+  );
 
   const onPointerDown = (event) => {
     if (lockedRef.current) return;
