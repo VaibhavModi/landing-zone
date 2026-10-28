@@ -88,5 +88,15 @@ if (gameCss.length !== 1) {
   console.log(`game js ${statSync(`dist/assets/${gameJs[0]}`).size} bytes, css ${statSync(`dist/assets/${gameCss[0]}`).size} bytes`);
 }
 
+const secretMarkers = ['GROQ_API_KEY', 'gsk_', 'api.groq.com'];
+for (const [name, source] of sources) {
+  for (const marker of secretMarkers) {
+    if (source.includes(marker)) complain(`${name} contains ${marker}`);
+  }
+}
+for (const marker of secretMarkers) {
+  if (html.includes(marker)) complain(`index.html contains ${marker}`);
+}
+
 if (failed) process.exit(1);
 console.log('bundle budget ok');

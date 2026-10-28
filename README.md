@@ -42,6 +42,7 @@ Copy `.env.example` to `.env.local` when you need the optional integrations:
 - `VITE_STEAM_PROXY_URL` — only if the friend page should call a deployed `/api/steam-profile` instead of the relative path.
 - `STEAM_PROFILE_ID`, `STEAM_SHOWCASE_APPIDS`, and `STEAM_API_KEY` — used by the serverless function on Vercel, not by the Vite client.
 - `VITE_WEB3FORMS_KEY` — public Web3Forms access key for the recruiter contact form. Set it in the Vercel project for **both Production and Preview** before merging a change that depends on it. Vite inlines `VITE_` variables at build time. If the key is missing, the form shows a message asking visitors to email hi@vaibhavmodi.com.
+- `GROQ_API_KEY`, `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN` — server-only, for `/api/excuse`. They are not `VITE_` variables and are not read by the client. If any of them is missing, the game keeps the pre-written rejection line.
 
 ## Deploy
 
