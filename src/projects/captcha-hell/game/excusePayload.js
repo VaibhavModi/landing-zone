@@ -42,6 +42,8 @@ export function buildExcusePayload(round, signals) {
   return payload;
 }
 
+export const CACHE_KEY_PREFIX = 'excuse:v2:';
+
 function coarse(value, step) {
   if (!Number.isFinite(value) || step <= 0) return 0;
   return Math.round(value / step) * step;
@@ -52,26 +54,52 @@ function fmt(value) {
   return Object.is(rounded, -0) ? '0' : String(rounded);
 }
 
-/** Short numeric line. This is the only model input, and the cache key. */
-export function signalLine(payload) {
-  if (!payload || payload.round === 2) {
-    const speed = coarse(payload?.avgSpeed ?? 0, 50);
-    const rhythm = coarse(payload?.rhythmRegularity ?? 0, 0.1);
-    const zone = Math.round(payload?.zone ?? 0);
-    const strokes = Math.max(0, Math.round(payload?.strokeCount ?? 0));
+const CAT_ZONES = ['head', 'back', 'belly', 'tail'];
+
+function paceWord(speed) {
+  if (speed >= 450) return 'fast';
+  if (speed <= 140) return 'slow';
+  return 'moderate';
+}
+
+function shapeWord(wobble) {
+  if (wobble >= 0.25) return 'wobbly';
+  if (wobble <= 0.08) return 'steady';
+  return 'uneven';
+}
+
+function rhythmWord(rhythm) {
+  if (rhythm >= 0.8) return 'steady';
+  if (rhythm <= 0.4) return 'erratic';
+  return 'uneven';
+}
+
+/**
+ * Plain-word description for the model, plus a bucket key that changes
+ * when the coarsely rounded gesture changes. v2 drops the old method-only pool.
+ */
+export function signalBrief(payload) {
+  if (payload?.round === 2) {
+    const strokes = Math.max(0, Math.round(payload.strokeCount ?? 0));
+    const seconds = coarse((payload.timeToFirstTouchMs ?? 0) / 1000, 0.5);
+    const zone = CAT_ZONES[Math.max(0, Math.min(3, Math.round(payload.zone ?? 1)))] ?? 'back';
+    const rhythm = rhythmWord(payload.rhythmRegularity ?? 0);
+    const pace = paceWord(payload.avgSpeed ?? 0);
     return {
       method: 'cat',
-      line: `m=cat s=${speed} r=${fmt(rhythm)} z=${zone} n=${strokes}`,
-      key: `excuse:b:cat:${speed}:${fmt(rhythm)}:${zone}:${strokes}`,
+      line: `cat: stroked the ${zone} ${strokes} times, ${pace} and ${rhythm}, hesitated ${fmt(seconds)} seconds`,
+      key: `${CACHE_KEY_PREFIX}cat:${zone}:${strokes}:${pace}:${rhythm}:${fmt(seconds)}`,
     };
   }
-  const score = coarse((payload.roundness ?? 0) / 100, 0.05);
-  const seconds = coarse((payload.durationMs ?? 0) / 1000, 0.5);
-  const wobble = coarse(payload.wobble ?? 0, 0.05);
+  const percent = Math.round(coarse(payload?.roundness ?? 0, 10));
+  const seconds = coarse((payload?.durationMs ?? 0) / 1000, 0.5);
+  const shape = shapeWord(payload?.wobble ?? 0);
+  const pace = paceWord(payload?.speed ?? 0);
+  const wait = (payload?.hesitationMs ?? 0) >= 800 ? 'hesitant' : 'quick';
   return {
     method: 'circle',
-    line: `m=circle s=${fmt(score)} t=${fmt(seconds)} j=${fmt(wobble)}`,
-    key: `excuse:b:circle:${fmt(score)}:${fmt(seconds)}:${fmt(wobble)}`,
+    line: `circle: roundness ${percent}%, took ${fmt(seconds)} seconds, ${shape}, ${pace}, ${wait}`,
+    key: `${CACHE_KEY_PREFIX}circle:${percent}:${fmt(seconds)}:${shape}:${pace}:${wait}`,
   };
 }
 
@@ -102,7 +130,17 @@ export function validateExcusePayload(value) {
 
 const URL_PATTERN = /(?:https?:\/\/|www\.)\S+/gi;
 
-export function sanitizeExcuseLine(raw) {
+function longWords(value) {
+  return value.toLowerCase().match(/[a-z]{5,}/g) ?? [];
+}
+
+function echoesPrompt(line, prompt) {
+  const source = new Set(longWords(prompt));
+  const copied = longWords(line).filter((word) => source.has(word));
+  return copied.length >= 2;
+}
+
+export function sanitizeExcuseLine(raw, prompt = '') {
   if (typeof raw !== 'string') return '';
   let text = Array.from(raw, (char) => {
     const code = char.charCodeAt(0);
@@ -110,11 +148,11 @@ export function sanitizeExcuseLine(raw) {
   }).join('').replace(/\s+/g, ' ').trim();
   text = text.replace(/^["'`]+|["'`]+$/g, '').trim();
   text = text.replace(URL_PATTERN, '').replace(/\s+/g, ' ').trim();
-  if (!text || text.length > MAX_EXCUSE_CHARS) return '';
+  if (!text || text.length > MAX_EXCUSE_CHARS || /\d/.test(text) || echoesPrompt(text, prompt)) return '';
   return text;
 }
 
-export function usableModelLine(content, finishReason) {
+export function usableModelLine(content, finishReason, prompt = '') {
   if (finishReason === 'length') return '';
-  return sanitizeExcuseLine(content);
+  return sanitizeExcuseLine(content, prompt);
 }

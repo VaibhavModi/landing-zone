@@ -4,7 +4,7 @@ import { Redis } from '@upstash/redis';
 import { clientIp } from './rate-limit.js';
 import {
   MAX_EXCUSE_BODY_BYTES,
-  signalLine,
+  signalBrief,
   usableModelLine,
   validateExcusePayload,
 } from '../src/projects/captcha-hell/game/excusePayload.js';
@@ -14,7 +14,7 @@ export const VISITOR_WINDOW = '1 h';
 export const GLOBAL_PER_DAY = 600;
 export const GLOBAL_WINDOW = '1 d';
 export const POOL_SIZE = 8;
-export const CACHE_TTL_SECONDS = 6 * 60 * 60;
+export const CACHE_TTL_SECONDS = 24 * 60 * 60;
 export const CALL_TIMEOUT_MS = 1200;
 export const MAX_TOKENS = 120;
 export const TOKEN_WARN = 300;
@@ -23,8 +23,8 @@ export const MODEL_FALLBACK = 'openai/gpt-oss-120b';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const SYSTEM_PROMPT = [
-  'Dry PG gatekeeper. One sentence, 140 characters max, plain text, no URL.',
-  'Do not mention AI or a rigged test. Use only the numbers.',
+  'You are a smug CAPTCHA gatekeeper. Write ONE witty sentence of at most 20 words rejecting this visitor as too human or too robotic based on how they drew or clicked.',
+  'Never quote numbers or units.',
 ].join('\n');
 
 let cachedGates;
@@ -146,29 +146,30 @@ async function callModel(fetchImpl, apiKey, model, line) {
   const data = await response.json();
   logUsage(model, data?.usage);
   const choice = data?.choices?.[0];
-  const text = usableModelLine(choice?.message?.content, choice?.finish_reason);
+  const text = usableModelLine(choice?.message?.content, choice?.finish_reason, line);
   return text ? { status: 200, text } : { status: 204 };
 }
 
-async function readCached(redis, bucket) {
-  const hit = await redis.get(bucket.key);
-  if (typeof hit === 'string' && hit.trim()) return hit.trim();
-  const pool = await redis.lrange(`excuse:pool:${bucket.method}`, 0, POOL_SIZE - 1);
-  if (!Array.isArray(pool) || pool.length === 0) return '';
-  let hash = 0;
-  for (let index = 0; index < bucket.key.length; index += 1) {
-    hash = (hash * 33 + bucket.key.charCodeAt(index)) >>> 0;
-  }
-  const line = pool[hash % pool.length];
-  return typeof line === 'string' ? line.trim() : '';
+function cleanPool(pool) {
+  if (!Array.isArray(pool)) return [];
+  return pool
+    .filter((entry) => typeof entry === 'string' && entry.trim())
+    .map((entry) => entry.trim());
 }
 
-async function storeCached(redis, bucket, text) {
-  await redis.set(bucket.key, text, { ex: CACHE_TTL_SECONDS });
-  const poolKey = `excuse:pool:${bucket.method}`;
-  await redis.rpush(poolKey, text);
-  await redis.ltrim(poolKey, -POOL_SIZE, -1);
-  await redis.expire(poolKey, CACHE_TTL_SECONDS);
+function pickLine(pool, random) {
+  const index = Math.min(pool.length - 1, Math.floor(random() * pool.length));
+  return pool[index];
+}
+
+async function readPool(redis, key) {
+  return cleanPool(await redis.lrange(key, 0, POOL_SIZE - 1));
+}
+
+async function addToPool(redis, key, text) {
+  await redis.rpush(key, text);
+  await redis.ltrim(key, -POOL_SIZE, -1);
+  await redis.expire(key, CACHE_TTL_SECONDS);
 }
 
 async function allowCall(gates, request) {
@@ -212,15 +213,17 @@ export async function handleExcuse(request, response, deps = {}) {
     return;
   }
 
-  const bucket = signalLine(validated.payload);
+  const bucket = signalBrief(validated.payload);
+  const random = deps.random ?? Math.random;
+  let pool = [];
   try {
-    const cached = await readCached(gates.redis, bucket);
-    if (cached) {
-      send(response, 200, { text: cached });
-      return;
-    }
+    pool = await readPool(gates.redis, bucket.key);
   } catch {
     send(response, 204);
+    return;
+  }
+  if (pool.length >= POOL_SIZE) {
+    send(response, 200, { text: pickLine(pool, random) });
     return;
   }
 
@@ -232,7 +235,8 @@ export async function handleExcuse(request, response, deps = {}) {
     return;
   }
   if (!allowed) {
-    send(response, 429, { error: 'rate-limited' });
+    if (pool.length > 0) send(response, 200, { text: pickLine(pool, random) });
+    else send(response, 204);
     return;
   }
 
@@ -246,7 +250,7 @@ export async function handleExcuse(request, response, deps = {}) {
       return;
     }
     try {
-      await storeCached(gates.redis, bucket, result.text);
+      await addToPool(gates.redis, bucket.key, result.text);
     } catch {
       // The line is still usable if the cache write fails.
     }

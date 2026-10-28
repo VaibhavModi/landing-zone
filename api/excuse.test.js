@@ -12,7 +12,13 @@ import {
   handleExcuse,
   resetExcuseGatesForTests,
 } from './excuse.js';
-import { buildExcusePayload, signalLine, validateExcusePayload } from '../src/projects/captcha-hell/game/excusePayload.js';
+import {
+  CACHE_KEY_PREFIX,
+  buildExcusePayload,
+  sanitizeExcuseLine,
+  signalBrief,
+  validateExcusePayload,
+} from '../src/projects/captcha-hell/game/excusePayload.js';
 
 const circleSignals = {
   roundness: 96,
@@ -74,8 +80,10 @@ describe('validateExcusePayload', () => {
   it('accepts the numeric payload the client already builds', () => {
     const payload = buildExcusePayload('circle', circleSignals);
     expect(validateExcusePayload(payload).ok).toBe(true);
-    expect(signalLine(payload).line).toMatch(/^m=circle s=\d/);
-    expect(signalLine(payload).line).not.toContain('{');
+    const brief = signalBrief(payload);
+    expect(brief.line.startsWith('circle:')).toBe(true);
+    expect(brief.key.startsWith(`${CACHE_KEY_PREFIX}circle:`)).toBe(true);
+    expect(brief.line).not.toContain('{');
   });
 
   it('rejects strings, NaN, and unknown methods', () => {
@@ -170,7 +178,7 @@ describe('handleExcuse', () => {
       blocked,
       { fetchImpl, gates },
     );
-    expect(blocked.statusCode).toBe(429);
+    expect(blocked.statusCode).toBe(204);
     expect(fetchImpl).toHaveBeenCalledTimes(VISITOR_PER_HOUR);
   });
 
@@ -252,14 +260,77 @@ describe('handleExcuse', () => {
     const second = mockResponse();
     await handleExcuse(request(payload), second, { fetchImpl, gates });
     expect(first.statusCode).toBe(200);
-    expect(second.body).toBe(first.body);
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(second.statusCode).toBe(200);
     expect(bodies[0].max_tokens).toBe(120);
     expect(bodies[0].reasoning_effort).toBe('low');
     expect(bodies[0].stream).toBe(false);
-    expect(bodies[0].messages[1].content).toBe(signalLine(payload).line);
+    expect(bodies[0].messages[1].content).toBe(signalBrief(payload).line);
+    expect(bodies[0].messages[1].content).not.toContain('m=circle');
     expect(bodies[0].messages[1].content).not.toContain('{');
+    expect(bodies[1].messages[1].content).toBe(signalBrief(payload).line);
     expect(CALL_TIMEOUT_MS).toBe(1200);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('fills a gesture bucket to 8 lines and then serves the pool', async () => {
+    process.env.GROQ_API_KEY = 'gsk_test_only';
+    const words = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel'];
+    let count = 0;
+    const fetchImpl = vi.fn(async () => groqSuccess(`Firmware rejected the ${words[count++]} attempt.`));
+    const gates = openGates();
+    const payload = buildExcusePayload('circle', circleSignals);
+    for (let index = 0; index < 8; index += 1) {
+      const response = mockResponse();
+      await handleExcuse(request(payload), response, { fetchImpl, gates, random: () => 0 });
+      expect(response.statusCode).toBe(200);
+    }
+    expect(fetchImpl).toHaveBeenCalledTimes(8);
+    const pooled = mockResponse();
+    await handleExcuse(request(payload), pooled, { fetchImpl, gates, random: () => 0.99 });
+    expect(fetchImpl).toHaveBeenCalledTimes(8);
+    expect(JSON.parse(pooled.body).text).toBe('Firmware rejected the hotel attempt.');
+  });
+
+  it('serves a pooled line when the visitor cap is already hit', async () => {
+    process.env.GROQ_API_KEY = 'gsk_test_only';
+    const fetchImpl = vi.fn();
+    const payload = buildExcusePayload('circle', circleSignals);
+    const key = signalBrief(payload).key;
+    const gates = openGates(new Map([[key, ['First saved roast.', 'Second saved roast.']]]));
+    gates.visitor = { async limit() { return { success: false }; } };
+    const response = mockResponse();
+    await handleExcuse(request(payload), response, { fetchImpl, gates, random: () => 0 });
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).text).toBe('First saved roast.');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('keeps separate pools for different gesture buckets', async () => {
+    process.env.GROQ_API_KEY = 'gsk_test_only';
+    const pushed = [];
+    const gates = openGates();
+    const original = gates.redis.rpush.bind(gates.redis);
+    gates.redis.rpush = async (key, value) => {
+      pushed.push(key);
+      return original(key, value);
+    };
+    const fetchImpl = vi.fn(async () => groqSuccess('Too neat for a living wrist.'));
+    await handleExcuse(
+      request(buildExcusePayload('circle', { ...circleSignals, roundness: 12 })),
+      mockResponse(),
+      { fetchImpl, gates },
+    );
+    await handleExcuse(
+      request(buildExcusePayload('circle', { ...circleSignals, roundness: 88 })),
+      mockResponse(),
+      { fetchImpl, gates },
+    );
+    expect(pushed).toHaveLength(2);
+    expect(pushed[0]).not.toBe(pushed[1]);
+    expect(pushed[0].startsWith(`${CACHE_KEY_PREFIX}circle:`)).toBe(true);
+    expect(pushed[1].startsWith(`${CACHE_KEY_PREFIX}circle:`)).toBe(true);
+    expect(signalBrief(buildExcusePayload('circle', { ...circleSignals, roundness: 12 })).key)
+      .not.toBe(signalBrief(buildExcusePayload('circle', { ...circleSignals, roundness: 88 })).key);
   });
 
   it('configures three roasts an hour and a global cap of 600', () => {
@@ -275,9 +346,42 @@ describe('handleExcuse', () => {
   });
 });
 
-function openGates() {
+describe('signal words and sanitizer', () => {
+  it('describes gestures in plain words and changes the bucket when the numbers change', () => {
+    const low = signalBrief(buildExcusePayload('circle', { ...circleSignals, roundness: 12, wobble: 0.4 }));
+    const high = signalBrief(buildExcusePayload('circle', { ...circleSignals, roundness: 88, wobble: 0.01 }));
+    expect(low.line).toMatch(/^circle: roundness \d+%/);
+    expect(low.line).toContain('wobbly');
+    expect(high.line).toContain('steady');
+    expect(low.key).not.toBe(high.key);
+    expect(low.key).not.toBe(`${CACHE_KEY_PREFIX}circle`);
+    const cat = signalBrief(buildExcusePayload('cat', {
+      strokeCount: 3,
+      avgSpeed: 40,
+      rhythmRegularity: 0.9,
+      directionChanges: 0,
+      meanGapMs: 100,
+      zone: 2,
+      timeToFirstTouchMs: 4000,
+      totalDistance: 20,
+      purr: 5,
+      pointCount: 4,
+    }));
+    expect(cat.line).toMatch(/^cat: stroked the belly 3 times/);
+    expect(cat.line).toContain('hesitated');
+    expect(cat.key.startsWith(`${CACHE_KEY_PREFIX}cat:`)).toBe(true);
+  });
+
+  it('rejects digits and lines that copy the prompt', () => {
+    const prompt = 'circle: roundness 60%, took 2.5 seconds, wobbly';
+    expect(sanitizeExcuseLine('Circle radius 0.6, time 2.5, jump 0.3.', prompt)).toBe('');
+    expect(sanitizeExcuseLine('The roundness was wobbly for several seconds.', prompt)).toBe('');
+    expect(sanitizeExcuseLine('Too mechanical to trust.', prompt)).toBe('Too mechanical to trust.');
+  });
+});
+
+function openGates(lists = new Map()) {
   const values = new Map();
-  const lists = new Map();
   return {
     redis: {
       async get(key) { return values.get(key) ?? null; },
@@ -291,7 +395,7 @@ function openGates() {
         const list = lists.get(key) ?? [];
         lists.set(key, list.slice(start));
       },
-      async lrange(key) { return lists.get(key) ?? []; },
+      async lrange(key) { return [...(lists.get(key) ?? [])]; },
       async expire() {},
     },
     visitor: { async limit() { return { success: true }; } },
