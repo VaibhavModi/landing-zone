@@ -65,7 +65,7 @@ describe('selectCannedExcuse', () => {
     const first = selectCannedExcuse('circle', perfect, 1);
     expect(selectCannedExcuse('circle', perfect, 1)).toEqual(first);
     expect(first.id).toBe('c-tr-cl-02');
-    expect(first.text).toBe('The gap is zero and the wobble is gone. Machines do that on purpose.');
+    expect(first.text).toBe('The gap is zero and the wobble is gone. Too perfect, only a bot draws that.');
     expect(selectCannedExcuse('circle', perfect, 2).id).toBe('c-tr-cl-03');
     expect(excuseById(first.id).tags).toContain('too-round');
     expect(excuseById(first.id).tags).not.toContain('wobbly');
@@ -76,7 +76,8 @@ describe('selectCannedExcuse', () => {
     expect(classifyCircle(plainWobble)).not.toContain('too-round');
     const picked = selectCannedExcuse('circle', plainWobble, 1);
     expect(picked.id).toBe('c-wb-07');
-    expect(picked.text).toBe('Convincing imperfection is still a program.');
+    expect(picked.text).toBe('A wobbly circle fails on a different excuse. Convincing imperfection is still a program.');
+    expect(picked.text.toLowerCase()).not.toContain('too perfect');
     const ids = new Set();
     for (let seed = 1; seed <= 30; seed += 1) {
       const choice = selectCannedExcuse('circle', plainWobble, seed);

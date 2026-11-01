@@ -4,7 +4,9 @@ import {
   availableMethods,
   completeRound,
   createVerificationState,
+  retryRound,
   selectMethod,
+  skipToCertificate,
   startSelected,
   takeCertificateEarly,
 } from './verificationMachine.js';
@@ -33,10 +35,18 @@ describe('verification state machine', () => {
     expect(selectMethod(again, 'circle')).toBe(again);
 
     const second = completeRound(startSelected(selectMethod(again, 'cat')), catResult);
-    expect(second.phase).toBe('certificate');
+    expect(second.phase).toBe('verdict');
     expect(second.early).toBe(false);
     expect(second.failed).toEqual(['circle', 'cat']);
     expect(second.rounds.map((round) => round.method)).toEqual(['circle', 'cat']);
+    expect(skipToCertificate(verdict)).toBe(verdict);
+
+    const retried = retryRound(second);
+    expect(retried.phase).toBe('cat');
+    expect(retried.failed).toEqual(['circle', 'cat']);
+    const skipped = skipToCertificate(second);
+    expect(skipped.phase).toBe('certificate');
+    expect(skipped.early).toBe(false);
   });
 
   it('also accepts cat first, then the circle', () => {
@@ -45,6 +55,8 @@ describe('verification state machine', () => {
     state = acknowledgeVerdict(completeRound(state, catResult));
     expect(availableMethods(state)).toEqual(['circle']);
     state = completeRound(startSelected(state), circleResult);
+    expect(state.phase).toBe('verdict');
+    state = skipToCertificate(state);
     expect(state.phase).toBe('certificate');
     expect(state.rounds.map((round) => round.incident)).toEqual(['0418', '0417']);
   });

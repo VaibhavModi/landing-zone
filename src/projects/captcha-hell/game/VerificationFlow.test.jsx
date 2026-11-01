@@ -57,13 +57,34 @@ describe('captcha hell flow', () => {
     expect(screen.getByText(/required:/i)).toBeInTheDocument();
     expect(screen.getByText(/not human/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /try another method/i }));
+    expect(screen.getByRole('heading', { name: /analyzing your circle/i })).toHaveFocus();
+    const again = screen.getByRole('button', { name: /^try again$/i });
+    const different = screen.getByRole('button', { name: /try different challenge/i });
+    expect(again.tabIndex).toBe(0);
+    expect(different.tabIndex).toBe(0);
+    expect(again.compareDocumentPosition(different) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    again.focus();
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    again.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(false);
+    different.focus();
+    const space = new KeyboardEvent('keyup', { key: ' ', bubbles: true, cancelable: true });
+    different.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(false);
+    fireEvent.click(different);
     expect(screen.getAllByText(/inconclusive. please try another method/i).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /draw a perfect circle/i })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByRole('button', { name: /pet the cat/i })).not.toHaveAttribute('aria-disabled');
     expect(screen.getByRole('button', { name: /get your certificate anyway/i })).toBeInTheDocument();
 
     petCat();
+    const skip = screen.getByRole('button', { name: /skip to my certificate/i });
+    expect(skip.tabIndex).toBe(0);
+    skip.focus();
+    const skipKey = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    skip.dispatchEvent(skipKey);
+    expect(skipKey.defaultPrevented).toBe(false);
+    fireEvent.click(skip);
     expect(screen.getByRole('heading', { name: /officially a robot/i })).toBeInTheDocument();
     expect(screen.getByText(/congratulations, you are a robot. please don't install this/i)).toBeInTheDocument();
     const share = screen.getByRole('link', { name: /share on x/i });
@@ -75,7 +96,7 @@ describe('captcha hell flow', () => {
   it('can stop after one method and still take the certificate', () => {
     render(<VerificationFlow />);
     drawCircle();
-    fireEvent.click(screen.getByRole('button', { name: /try another method/i }));
+    fireEvent.click(screen.getByRole('button', { name: /try different challenge/i }));
     fireEvent.click(screen.getByRole('button', { name: /get your certificate anyway/i }));
     expect(screen.getByRole('heading', { name: /officially a robot/i })).toBeInTheDocument();
   });

@@ -10,27 +10,27 @@ const px = (value) => String(Math.round(Number.isFinite(value) ? value : 0));
  * `line` may only read numeric fields. It must not echo free text.
  */
 export const CIRCLE_EXCUSES = [
-  { id: 'c-tr-01', tags: ['too-round'], line: (s) => `Machine precision. ${pct(s.roundness)}% round is below the human tremor floor.` },
-  { id: 'c-tr-02', tags: ['too-round'], line: () => 'This arc was drafted by a stepper motor, then sent here to confess.' },
-  { id: 'c-tr-03', tags: ['too-round'], line: () => 'The curve is too clean. People leave scars.' },
-  { id: 'c-tr-04', tags: ['too-round'], line: () => 'No living wrist holds a radius that steady.' },
-  { id: 'c-tr-05', tags: ['too-round'], line: () => 'You drew a specification, not a circle.' },
-  { id: 'c-tr-06', tags: ['too-round'], line: (s) => `Radius error at wobble ${pct(s.wobble)}. Our model flags this as CNC, not cartilage.` },
-  { id: 'c-tr-07', tags: ['too-round'], line: () => 'Perfect circles are a firmware feature.' },
-  { id: 'c-tr-08', tags: ['too-round'], line: () => 'A compass leaves this trail. A hand does not.' },
-  { id: 'c-tr-cl-01', tags: ['too-round', 'closed'], line: () => 'Closed perfectly and perfectly round. That is a toolpath.' },
-  { id: 'c-tr-cl-02', tags: ['too-round', 'closed'], line: () => 'The gap is zero and the wobble is gone. Machines do that on purpose.' },
-  { id: 'c-tr-cl-03', tags: ['too-round', 'closed'], line: () => 'A human circle leaks at the seam. Yours sealed itself.' },
-  { id: 'c-tr-op-01', tags: ['too-round', 'open'], line: () => 'Round enough to be machinery, open enough to pretend you stopped early.' },
-  { id: 'c-tr-op-02', tags: ['too-round', 'open'], line: () => 'The radius is robotic. The gap is the alibi.' },
-  { id: 'c-tr-op-03', tags: ['too-round', 'open'], line: () => 'You lifted the pen like a person and drew like a plotter.' },
-  { id: 'c-wb-01', tags: ['wobbly'], line: (s) => `${pct(s.humanity)}% is exactly what a bot aiming for convincingly imperfect would draw. Nice try.` },
+  { id: 'c-tr-01', tags: ['too-round'], line: (s) => `Too perfect, only a bot draws that. ${pct(s.roundness)}% round has no human tremor.` },
+  { id: 'c-tr-02', tags: ['too-round'], line: () => 'Too perfect, only a bot draws that. This arc was a stepper motor.' },
+  { id: 'c-tr-03', tags: ['too-round'], line: () => 'Too perfect, only a bot draws that. People leave scars.' },
+  { id: 'c-tr-04', tags: ['too-round'], line: () => 'Too perfect, only a bot draws that. No living wrist holds a radius that steady.' },
+  { id: 'c-tr-05', tags: ['too-round'], line: () => 'Too perfect, only a bot draws that. You drew a specification.' },
+  { id: 'c-tr-06', tags: ['too-round'], line: (s) => `Too perfect, only a bot draws that. Wobble ${pct(s.wobble)} is CNC, not cartilage.` },
+  { id: 'c-tr-07', tags: ['too-round'], line: () => 'Too perfect, only a bot draws that. Perfect circles are firmware.' },
+  { id: 'c-tr-08', tags: ['too-round'], line: () => 'Too perfect, only a bot draws that. A compass leaves this trail.' },
+  { id: 'c-tr-cl-01', tags: ['too-round', 'closed'], line: () => 'Too perfect, only a bot draws that. Closed like a toolpath.' },
+  { id: 'c-tr-cl-02', tags: ['too-round', 'closed'], line: () => 'The gap is zero and the wobble is gone. Too perfect, only a bot draws that.' },
+  { id: 'c-tr-cl-03', tags: ['too-round', 'closed'], line: () => 'Too perfect, only a bot draws that. A human circle leaks at the seam.' },
+  { id: 'c-tr-op-01', tags: ['too-round', 'open'], line: () => 'Too perfect, only a bot draws that, then lifts early as an alibi.' },
+  { id: 'c-tr-op-02', tags: ['too-round', 'open'], line: () => 'Too perfect, only a bot draws that. The gap is the alibi.' },
+  { id: 'c-tr-op-03', tags: ['too-round', 'open'], line: () => 'Too perfect, only a bot draws that. You only lifted the pen like a person.' },
+  { id: 'c-wb-01', tags: ['wobbly'], line: (s) => `${pct(s.humanity)}% wobble fails on a different excuse. A bot aiming for imperfect would draw this.` },
   { id: 'c-wb-02', tags: ['wobbly'], line: () => 'The errors are distributed too evenly to be nerves.' },
   { id: 'c-wb-03', tags: ['wobbly'], line: () => 'This is studied mess. Humans are worse on one side.' },
   { id: 'c-wb-04', tags: ['wobbly'], line: () => 'The bump was placed. Accidents do not land that neatly.' },
   { id: 'c-wb-05', tags: ['wobbly'], line: () => 'Tremor, but metronomic. That is a noise function.' },
   { id: 'c-wb-06', tags: ['wobbly'], line: () => 'You added humanity like a plugin.' },
-  { id: 'c-wb-07', tags: ['wobbly'], line: () => 'Convincing imperfection is still a program.' },
+  { id: 'c-wb-07', tags: ['wobbly'], line: () => 'A wobbly circle fails on a different excuse. Convincing imperfection is still a program.' },
   { id: 'c-wb-08', tags: ['wobbly'], line: () => 'The wobble has a period. Hands do not.' },
   { id: 'c-wb-09', tags: ['wobbly'], line: () => 'Close to human, which is what the cheap bots practice.' },
   { id: 'c-wb-10', tags: ['wobbly'], line: (s) => `Wobble ${pct(s.wobble)} at ${px(s.speed)} px/s. Synthetic jitter, filed.` },
@@ -104,6 +104,7 @@ export function excuseById(id) {
 
 export function classifyCircle(signals) {
   const tags = ['any'];
+  // Rounder and steadier is more bot. A wobbly circle takes the other pool.
   if ((signals.roundness ?? 0) >= 90 && (signals.wobble ?? 1) <= 0.2) tags.push('too-round');
   else tags.push('wobbly');
   if ((signals.closureGapRatio ?? 1) <= 0.08) tags.push('closed');

@@ -42,7 +42,7 @@ export function buildExcusePayload(round, signals) {
   return payload;
 }
 
-export const CACHE_KEY_PREFIX = 'excuse:v2:';
+export const CACHE_KEY_PREFIX = 'excuse:v3:';
 
 function coarse(value, step) {
   if (!Number.isFinite(value) || step <= 0) return 0;
@@ -75,8 +75,21 @@ function rhythmWord(rhythm) {
 }
 
 /**
+ * A rounder circle is more bot. At least 90% round with wobble at or under
+ * 0.2 is "too perfect, only a bot draws that". Anything looser fails on a
+ * different excuse. Same cut as classifyCircle.
+ */
+function circleJudgment(roundness, wobble) {
+  if (roundness >= 90 && wobble <= 0.2) {
+    return { token: 'perfect', words: 'too perfect, only a bot draws that' };
+  }
+  return { token: 'wobbly', words: 'wobbly, fails on a different excuse' };
+}
+
+/**
  * Plain-word description for the model, plus a bucket key that changes
- * when the coarsely rounded gesture changes. v2 drops the old method-only pool.
+ * when the coarsely rounded gesture changes. v3 retires excuse:v2: pools
+ * that still treated a perfect circle as the human result.
  */
 export function signalBrief(payload) {
   if (payload?.round === 2) {
@@ -91,15 +104,18 @@ export function signalBrief(payload) {
       key: `${CACHE_KEY_PREFIX}cat:${zone}:${strokes}:${pace}:${rhythm}:${fmt(seconds)}`,
     };
   }
-  const percent = Math.round(coarse(payload?.roundness ?? 0, 10));
+  const roundness = payload?.roundness ?? 0;
+  const wobble = payload?.wobble ?? 0;
+  const percent = Math.round(coarse(roundness, 10));
   const seconds = coarse((payload?.durationMs ?? 0) / 1000, 0.5);
-  const shape = shapeWord(payload?.wobble ?? 0);
+  const shape = shapeWord(wobble);
   const pace = paceWord(payload?.speed ?? 0);
   const wait = (payload?.hesitationMs ?? 0) >= 800 ? 'hesitant' : 'quick';
+  const judgment = circleJudgment(roundness, wobble);
   return {
     method: 'circle',
-    line: `circle: roundness ${percent}%, took ${fmt(seconds)} seconds, ${shape}, ${pace}, ${wait}`,
-    key: `${CACHE_KEY_PREFIX}circle:${percent}:${fmt(seconds)}:${shape}:${pace}:${wait}`,
+    line: `circle: roundness ${percent}%, ${judgment.words}, took ${fmt(seconds)} seconds, ${shape}, ${pace}, ${wait}`,
+    key: `${CACHE_KEY_PREFIX}circle:${percent}:${fmt(seconds)}:${shape}:${pace}:${wait}:${judgment.token}`,
   };
 }
 

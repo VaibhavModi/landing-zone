@@ -269,7 +269,10 @@ describe('handleExcuse', () => {
     expect(MAX_TOKENS).toBe(200);
     expect(bodies[0].reasoning_effort).toBe('low');
     expect(bodies[0].stream).toBe(false);
+    expect(bodies[0].messages[0].content).toMatch(/too perfect, only a bot draws that/i);
+    expect(bodies[0].messages[0].content).toMatch(/wobbly circle fails on a different excuse/i);
     expect(bodies[0].messages[1].content).toBe(signalBrief(payload).line);
+    expect(bodies[0].messages[1].content).toContain('too perfect, only a bot draws that');
     expect(bodies[0].messages[1].content).not.toContain('m=circle');
     expect(bodies[0].messages[1].content).not.toContain('{');
     expect(bodies[1].messages[1].content).toBe(signalBrief(payload).line);
@@ -354,9 +357,12 @@ describe('handleExcuse', () => {
 describe('signal words and sanitizer', () => {
   it('describes gestures in plain words and changes the bucket when the numbers change', () => {
     const low = signalBrief(buildExcusePayload('circle', { ...circleSignals, roundness: 12, wobble: 0.4 }));
-    const high = signalBrief(buildExcusePayload('circle', { ...circleSignals, roundness: 88, wobble: 0.01 }));
+    const high = signalBrief(buildExcusePayload('circle', { ...circleSignals, roundness: 96, wobble: 0.01 }));
+    expect(CACHE_KEY_PREFIX).toBe('excuse:v3:');
     expect(low.line).toMatch(/^circle: roundness \d+%/);
-    expect(low.line).toContain('wobbly');
+    expect(low.line).toContain('wobbly, fails on a different excuse');
+    expect(low.line).not.toContain('too perfect');
+    expect(high.line).toContain('too perfect, only a bot draws that');
     expect(high.line).toContain('steady');
     expect(low.key).not.toBe(high.key);
     expect(low.key).not.toBe(`${CACHE_KEY_PREFIX}circle`);

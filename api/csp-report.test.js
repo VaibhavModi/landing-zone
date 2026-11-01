@@ -474,6 +474,7 @@ describe('csp report endpoint', () => {
         read() {
           return null;
         },
+        destroy: vi.fn(),
         on() {
           return this;
         },
@@ -498,6 +499,7 @@ describe('csp report endpoint', () => {
       await pending;
       expect(reads).toBe(0);
       expect(response.statusCode).toBe(204);
+      expect(request.destroy).toHaveBeenCalledTimes(1);
       expect(errorSpy).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
