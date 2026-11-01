@@ -9,7 +9,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 // so these caps still cannot hide it, and the marker checks below reject
 // it outright if it lands in the home, recruiter, or friend output.
 const BASELINE_MAIN = 159464;
-const MAIN_BUDGET = 180000;
+const MAIN_BUDGET = 170000;
 const RECRUITER_BUDGET = 24000;
 const FRIEND_BUDGET = 8000;
 const MARKER = 'captcha-hell-game-chunk';

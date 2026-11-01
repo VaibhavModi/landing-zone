@@ -26,7 +26,7 @@ const routeMeta = {
   },
   'captcha-hell': {
     title: 'Captcha Hell · Vaibhav Modi',
-    description: 'Human verification, reimagined with AI. An experiment by Vaibhav Modi.',
+    description: 'Human verification, reimagined with AI.',
   },
   'not-found': {
     title: 'Vaibhav Modi · Page not found',
@@ -77,6 +77,10 @@ function Portrait({ alt, className, priority = false, variant = 'hero' }) {
           sizes={HEADER_SIZES}
           type="image/webp"
         />
+        {/*
+          Palette (8-bit) PNG fallback. Slight banding is expected.
+          Only browsers without AVIF or WebP support download it.
+        */}
         <img
           src="/images/profile-portrait-header-128-v2.png"
           srcSet="/images/profile-portrait-header-64-v2.png 64w, /images/profile-portrait-header-128-v2.png 128w"
@@ -528,9 +532,11 @@ function App() {
         ) : currentView === 'not-found' ? (
           <NotFoundFrame goHome={goHome} />
         ) : currentView === 'projects' ? (
-          <Suspense fallback={<RouteFallback label="Projects" />}>
-            <ProjectsPage openView={openView} />
-          </Suspense>
+          <div className="feature-slot">
+            <Suspense fallback={<RouteFallback label="Projects" />}>
+              <ProjectsPage openView={openView} />
+            </Suspense>
+          </div>
         ) : currentView === 'captcha-hell' ? (
           <Suspense fallback={<RouteFallback label="Captcha Hell" />}>
             <CaptchaHellPage openView={openView} />

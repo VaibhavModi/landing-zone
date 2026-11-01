@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import InlineArrow from '../../InlineArrow.jsx';
 import CatArt from './CatArt.jsx';
 import CatRound from './CatRound.jsx';
 import CircleRound, { CircleSketch } from './CircleRound.jsx';
@@ -10,10 +11,14 @@ import {
   acknowledgeVerdict,
   completeRound,
   createVerificationState,
+  retryRound,
   selectMethod,
+  skipToCertificate,
   startSelected,
   takeCertificateEarly,
 } from './verificationMachine.js';
+
+const ROAST_SESSION_KEY = 'captcha-hell-roast';
 
 export const GAME_CHUNK_MARKER = 'captcha-hell-game-chunk';
 
@@ -134,7 +139,7 @@ function shareUrl(incident) {
   return `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
 }
 
-function Widget({ kicker, title, lede, children }) {
+function Widget({ kicker, title, lede, children, titleRef }) {
   return (
     <div className="ch-widget" data-game-chunk={GAME_CHUNK_MARKER}>
       <div className="ch-widget__hd">
@@ -142,7 +147,7 @@ function Widget({ kicker, title, lede, children }) {
           <ShieldMark />
           {kicker}
         </p>
-        <h2>{title}</h2>
+        <h2 ref={titleRef} tabIndex={titleRef ? -1 : undefined}>{title}</h2>
         {lede ? <p className="ch-widget__lede">{lede}</p> : null}
       </div>
       {children}
@@ -157,8 +162,11 @@ export default function VerificationFlow() {
   const [line, setLine] = useState(null);
   const flight = useRef(null);
   const mounted = useRef(true);
+  const roastSent = useRef(false);
+  const latestIncident = useRef(null);
   const startRef = useRef(null);
   const certTitle = useRef(null);
+  const verdictTitle = useRef(null);
   const unlocked = state.phase === 'certificate';
   const last = state.rounds[state.rounds.length - 1] ?? null;
 
@@ -167,6 +175,10 @@ export default function VerificationFlow() {
       startRef.current?.focus();
     }
   }, [state.phase, state.failed.length]);
+
+  useEffect(() => {
+    if (state.phase === 'verdict') verdictTitle.current?.focus();
+  }, [state.phase, last?.incident]);
 
   useEffect(() => {
     if (unlocked) certTitle.current?.focus();
@@ -179,13 +191,34 @@ export default function VerificationFlow() {
 
   const publishLine = (incident, text) => {
     if (!mounted.current) return;
-    if (flight.current?.incident !== incident) return;
+    if (latestIncident.current !== incident) return;
     setLine({ status: 'ready', incident, text });
     setAnnouncement(text);
   };
 
+  const roastAlreadySent = () => {
+    if (roastSent.current) return true;
+    try {
+      return sessionStorage.getItem(ROAST_SESSION_KEY) === '1';
+    } catch {
+      return false;
+    }
+  };
+
   const askForLine = (result) => {
+    if (roastAlreadySent()) {
+      roastSent.current = true;
+      setLine({ status: 'ready', incident: result.incident, text: result.text });
+      setAnnouncement(result.text);
+      return;
+    }
     if (flight.current?.incident === result.incident) return;
+    roastSent.current = true;
+    try {
+      sessionStorage.setItem(ROAST_SESSION_KEY, '1');
+    } catch {
+      // Private mode. This mount still will not ask again.
+    }
     const controller = new AbortController();
     flight.current = { incident: result.incident, controller };
     setLine({ status: 'analyzing', incident: result.incident, text: result.text });
@@ -205,6 +238,7 @@ export default function VerificationFlow() {
 
   const finishRound = (method, result, nextArtwork) => {
     const isFinal = state.failed.length === 1 && !state.failed.includes(method);
+    latestIncident.current = result.incident;
     if (method === 'circle') setArtwork(nextArtwork);
     else setArtwork(null);
     setState((current) => completeRound(current, {
@@ -248,19 +282,49 @@ export default function VerificationFlow() {
         kicker={`Incident #${last.incident}`}
         title={last.method === 'circle' ? 'Analyzing your circle…' : 'The cat has filed a report.'}
         lede={last.method === 'circle' ? 'Suspicious bump marked.' : 'Reviewing your petting technique…'}
+        titleRef={state.phase === 'verdict' ? verdictTitle : null}
       >
         <Verdict round={last} artwork={last.method === 'circle' ? artwork : null} line={line} />
         {state.phase === 'verdict' ? (
-          <button
-            className="ch-go ch-go--block"
-            type="button"
-            onClick={() => {
-              setAnnouncement('Inconclusive. Please try another method.');
-              setState((current) => acknowledgeVerdict(current));
-            }}
-          >
-            Try another method
-          </button>
+          <div className="ch-reject">
+            <button
+              className="ch-go"
+              type="button"
+              onClick={() => {
+                setAnnouncement(last.method === 'cat'
+                  ? 'Empathy check. Pet the cat.'
+                  : 'Precision check. Draw a perfect circle.');
+                setState((current) => retryRound(current));
+              }}
+            >
+              Try again
+            </button>
+            {state.failed.length >= 2 ? (
+              <button
+                className="ch-go ch-go--line"
+                type="button"
+                onClick={() => {
+                  setAnnouncement('Officially a robot. Please do not install this.');
+                  setState((current) => skipToCertificate(current));
+                }}
+              >
+                Skip to my certificate
+                <InlineArrow />
+              </button>
+            ) : (
+              <button
+                className="ch-go ch-go--line"
+                type="button"
+                onClick={() => {
+                  setAnnouncement('Inconclusive. Please try another method.');
+                  setState((current) => acknowledgeVerdict(current));
+                }}
+              >
+                Try different challenge
+                <InlineArrow />
+              </button>
+            )}
+          </div>
         ) : (
           <a className="ch-go ch-go--block" href="#certificate">View certificate</a>
         )}
@@ -287,7 +351,7 @@ export default function VerificationFlow() {
 
   return (
     <>
-      <div className="ch-slot">
+      <div className="ch-slot" id="play">
         <div className="sr-only" role="status">{announcement}</div>
         {widget}
       </div>

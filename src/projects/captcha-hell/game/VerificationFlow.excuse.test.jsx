@@ -13,9 +13,17 @@ function drawCircle() {
 
 function reachFinalRound() {
   drawCircle();
-  fireEvent.click(screen.getByRole('button', { name: /try another method/i }));
+  fireEvent.click(screen.getByRole('button', { name: /try different challenge/i }));
   fireEvent.click(screen.getByRole('button', { name: /pet the cat/i }));
   fireEvent.click(screen.getByRole('button', { name: /^start$/i }));
+  const cat = screen.getByRole('application', { name: /cat/i });
+  fireEvent.keyDown(cat, { key: ' ' });
+  fireEvent.keyUp(cat, { key: ' ' });
+  fireEvent.click(screen.getByRole('button', { name: /done petting/i }));
+}
+
+function replayCat() {
+  fireEvent.click(screen.getByRole('button', { name: /^try again$/i }));
   const cat = screen.getByRole('application', { name: /cat/i });
   fireEvent.keyDown(cat, { key: ' ' });
   fireEvent.keyUp(cat, { key: ' ' });
@@ -25,6 +33,7 @@ function reachFinalRound() {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  sessionStorage.clear();
 });
 
 describe('final rejection excuse', () => {
@@ -98,5 +107,41 @@ describe('final rejection excuse', () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires the AI roast once per finished game, never on retry or skip', async () => {
+    sessionStorage.clear();
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ text: 'Plotted, not pulsed.' }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const first = render(<VerificationFlow />);
+    reachFinalRound();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    replayCat();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/analyzing behavioral signature/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /skip to my certificate/i }));
+    expect(screen.getByRole('heading', { name: /officially a robot/i })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    first.unmount();
+    render(<VerificationFlow />);
+    reachFinalRound();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/analyzing behavioral signature/i)).not.toBeInTheDocument();
   });
 });

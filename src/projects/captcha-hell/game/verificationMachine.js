@@ -44,15 +44,37 @@ export function completeRound(state, result) {
       incident: result.incident,
     },
   ];
-  const done = failed.length >= 2;
   return {
     ...state,
     failed,
     rounds,
     active: method,
     selected: null,
-    phase: done ? 'certificate' : 'verdict',
+    phase: 'verdict',
     early: false,
+  };
+}
+
+export function retryRound(state) {
+  if (state.phase !== 'verdict') return state;
+  const method = state.rounds[state.rounds.length - 1]?.method;
+  if (method !== 'circle' && method !== 'cat') return state;
+  return {
+    ...state,
+    phase: method,
+    active: method,
+    selected: method,
+  };
+}
+
+export function skipToCertificate(state) {
+  if (state.phase !== 'verdict') return state;
+  if (state.failed.length < 2) return state;
+  return {
+    ...state,
+    phase: 'certificate',
+    early: false,
+    active: null,
   };
 }
 

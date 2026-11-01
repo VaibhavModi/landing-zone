@@ -23,7 +23,7 @@ export const MODEL_FALLBACK = 'openai/gpt-oss-120b';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const SYSTEM_PROMPT = [
-  'Smug CAPTCHA gatekeeper. ONE witty sentence, 20 words max: too human or too robotic, from how they drew or clicked.',
+  'Smug CAPTCHA gatekeeper. ONE witty sentence, 20 words max. A rounder circle is more bot: too perfect, only a bot draws that. A wobbly circle fails on a different excuse.',
   'No numbers or units.',
 ].join('\n');
 

@@ -218,12 +218,14 @@ function empty(response, status) {
   response.status(status).send('');
 }
 
+// Deliberate upper bound on billed duration. A live socket that never emits
+// `end` would otherwise hold the isolate open. After this wait the handler
+// responds with whatever bytes it has and calls request.destroy() so it
+// stops reading.
 const BODY_READ_TIMEOUT_MS = 2000;
 
 function toBuffer(chunk) {
   if (Buffer.isBuffer(chunk)) return chunk;
-  if (chunk instanceof Uint8Array) return Buffer.from(chunk);
-  if (typeof chunk === 'string') return Buffer.from(chunk);
   return Buffer.from(chunk);
 }
 
@@ -238,8 +240,8 @@ function parsedFromChunks(chunks) {
 // readableEnded and destroyed, so `for await` yields nothing. These
 // content types are not in getBodyParser, so req.body stays unset — do
 // not read it. An already-ended stream will not emit data/end; pull
-// req.read() instead. If nothing arrives, stop after 2s so the isolate
-// cannot hang.
+// req.read() instead. If nothing arrives, stop after BODY_READ_TIMEOUT_MS
+// and destroy the request so a drained socket cannot hang the isolate.
 function readStream(request) {
   return new Promise((resolve) => {
     const chunks = [];
@@ -254,12 +256,17 @@ function readStream(request) {
       resolve(result);
     };
 
+    const stopReading = () => {
+      if (typeof request.destroy === 'function') request.destroy();
+    };
+
     const push = (chunk) => {
       if (settled || chunk == null) return true;
       const buf = toBuffer(chunk);
       if (buf.length === 0) return false;
       if (total + buf.length > MAX_BODY_BYTES) {
         finish({ tooBig: true });
+        stopReading();
         return true;
       }
       total += buf.length;
@@ -291,6 +298,7 @@ function readStream(request) {
 
     timer = setTimeout(() => {
       finish({ parsed: parsedFromChunks(chunks) });
+      stopReading();
     }, BODY_READ_TIMEOUT_MS);
 
     if (typeof request.on === 'function') {

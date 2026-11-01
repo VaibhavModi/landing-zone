@@ -52,7 +52,9 @@ describe('routes', () => {
   it('renders the projects gallery and links into captcha hell', async () => {
     renderAt('/projects');
     expect(await screen.findByRole('heading', { name: /things i built to make you smile/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /secure my website/i })).toHaveAttribute('href', '/projects/captcha-hell');
+    expect(screen.getByRole('link', { name: /try it free/i })).toHaveAttribute('href', '/projects/captcha-hell');
+    expect(screen.getByRole('link', { name: /tap to play/i })).toHaveAttribute('href', '/projects/captcha-hell');
+    expect(screen.queryByText(/an experiment by vaibhav modi/i)).not.toBeInTheDocument();
     expect(screen.getAllByText(/more experiments loading/i)).toHaveLength(2);
     expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href'))
       .toBe('https://www.vaibhavmodi.com/projects');
@@ -63,6 +65,11 @@ describe('routes', () => {
     expect(await screen.findByRole('heading', { name: /human verification, reimagined with ai/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /verify you're human/i })).toBeInTheDocument();
     expect(screen.getByText(/a parody project by vaibhav/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /think you're human/i })).toBeInTheDocument();
+    expect(screen.getByText(/prove it\. it takes under a minute/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /try it free/i })).toHaveAttribute('href', '#play');
+    expect(screen.getByRole('link', { name: /next project/i })).toHaveAttribute('href', '/projects');
+    expect(screen.queryByText(/an experiment by vaibhav modi/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /officially a robot/i })).not.toBeInTheDocument();
     expect(document.title).toMatch(/Captcha Hell/);
   });

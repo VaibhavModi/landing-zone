@@ -1,3 +1,4 @@
+import InlineArrow from '../../InlineArrow.jsx';
 import CatArt from './CatArt.jsx';
 
 function Shield() {
@@ -102,7 +103,7 @@ export default function MethodPicker({
           disabled={!selected || failed.includes(selected)}
         >
           Start
-          <span aria-hidden="true"> →</span>
+          <InlineArrow />
         </button>
       </div>
       {inconclusive ? (
